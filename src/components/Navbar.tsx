@@ -20,7 +20,7 @@ export default function Navbar({ variant = 'default' }: { variant?: NavbarVarian
         <Link to="/" className="flex items-center gap-3">
           <LogoM />
           <span className="text-xl font-bold text-[#1f2937] hover:opacity-80">
-            {isAuth ? 'Claims Portal' : 'ClaimsApp'}
+            ClaimsApp
           </span>
         </Link>
         <nav className="flex items-center gap-6 md:gap-8">
