@@ -1,8 +1,8 @@
+/// <reference types="vite/client" />
 import axios from "axios";
 
 
 export async function RegisterAuth(email: string, password: string, fullName: string, roles: 'user') {
-
 
     try{
         const response = await axios.post(`${import.meta.env.VITE_BACK_AUTH_DEV}/auth/register`, { email, password, fullName, roles});
@@ -12,6 +12,8 @@ export async function RegisterAuth(email: string, password: string, fullName: st
             localStorage.setItem("token", response.data.token);
             return true;
         }
+
+        //Aca guardar el rol tambien
         return false;    
     }catch(err){
         console.error('Error en el registro:', err);
