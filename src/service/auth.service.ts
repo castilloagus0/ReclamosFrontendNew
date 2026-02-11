@@ -1,8 +1,13 @@
 /// <reference types="vite/client" />
 import axios from "axios";
+import { toast } from "sonner";
 
+<<<<<<< HEAD
 
 export async function RegisterAuth(email: string, password: string, fullName: string, roles: 'user') {
+=======
+export async function RegisterAuth(email: string, password: string, fullName: string, roles: string) {
+>>>>>>> bd982a9 (actualizacion de config y lista la parte de login y register - manejo de sesiones)
 
     try{
         const response = await axios.post(`${import.meta.env.VITE_BACK_AUTH_DEV}/auth/register`, { email, password, fullName, roles});
@@ -10,6 +15,10 @@ export async function RegisterAuth(email: string, password: string, fullName: st
 
         if (response.data.token) {
             localStorage.setItem("token", response.data.token);
+            localStorage.setItem("email", response.data.email);
+            localStorage.setItem("roles", response.data.roles );
+            localStorage.setItem("fullName", response.data.fullName);   
+            localStorage.setItem("id", response.data._id);
             return true;
         }
 
@@ -25,21 +34,25 @@ export async function RegisterAuth(email: string, password: string, fullName: st
 
 export async function LoginAuth(email: string, password: string) {
     try {
-        const response = await axios.post(`${import.meta.env.VITE_BACK_AUTH_DEV}/auth/login`, { email, password });
+        const response = await axios.post(`${import.meta.env.VITE_JWT_BACK}/auth/login`, { email, password });
         console.log(response.data);
 
         if (response.data.token) {
             localStorage.setItem("token", response.data.token);
+            localStorage.setItem("email", response.data.email);
+            localStorage.setItem("roles", response.data.roles );
+            localStorage.setItem("fullName", response.data.fullName);   
+            localStorage.setItem("id", response.data._id);
             return true;
         }
         return false;
     } catch (error) {
         if (axios.isAxiosError(error)) {
             if (error.response?.status === 401) {
-                alert("Direccion de mail o contraseña incorrecta!");
+                toast.error("Dirección de mail o contraseña incorrecta");
             }
             if (error.response?.status === 404) {
-                alert("Servicio de backend no funcionando!")
+                toast.error("Servicio de backend no disponible");
             }
         }
         return false;

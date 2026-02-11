@@ -7,6 +7,11 @@ import Footer from '../components/Footer'
 //Iconos
 import { EyeIcon, EyeOffIcon, GoogleIcon, SSOIcon } from '../components/Icons';
 
+//Service
+import { toast } from 'sonner';
+import { LoginAuth } from '../service/auth.service';
+import { useLoading } from '../context/LoadingContext';
+
 const inputClass =
   'w-full px-4 py-2.5 rounded-lg border border-[#d1d5db] text-[#1f2937] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-(--color-primary) focus:border-transparent';
 
@@ -14,11 +19,22 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const { setLoading } = useLoading();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: integrar con backend
+    setLoading(true);
+    try {
+      const login = await LoginAuth(email, password);
+      if (login) {
+        toast.success('Sesión iniciada correctamente');
+        window.location.href = '/user-dashboard';
+      }
+    } finally {
+      setLoading(false);
+    }
   };
+
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f5f5f5]">

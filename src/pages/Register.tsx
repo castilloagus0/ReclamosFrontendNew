@@ -16,6 +16,10 @@ import {
   PhoneIcon,
 } from '../components/Icons';
 
+import { toast } from 'sonner';
+import { RegisterAuth } from '../service/auth.service';
+import { useLoading } from '../context/LoadingContext';
+
 const inputClass =
   'w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#d1d5db] text-[#1f2937] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent';
 
@@ -30,10 +34,26 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const { setLoading } = useLoading();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: integrar con backend
+
+    setLoading(true);
+    try {
+      const registerUser = await RegisterAuth(email, password, fullName, 'user');
+
+      if (registerUser) {
+        toast.success('Usuario registrado con éxito');
+        window.location.href = '/user-dashboard';
+      } else {
+        toast.error('Error al registrar usuario');
+      }
+    } catch (err) {
+
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
