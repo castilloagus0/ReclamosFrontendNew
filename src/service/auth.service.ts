@@ -2,12 +2,7 @@
 import axios from "axios";
 import { toast } from "sonner";
 
-<<<<<<< HEAD
-
-export async function RegisterAuth(email: string, password: string, fullName: string, roles: 'user') {
-=======
 export async function RegisterAuth(email: string, password: string, fullName: string, roles: string) {
->>>>>>> bd982a9 (actualizacion de config y lista la parte de login y register - manejo de sesiones)
 
     try{
         const response = await axios.post(`${import.meta.env.VITE_BACK_AUTH_DEV}/auth/register`, { email, password, fullName, roles});

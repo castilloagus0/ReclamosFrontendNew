@@ -4,6 +4,11 @@ import Footer from '../components/Footer';
 import Button from '../components/Button';
 import Sidebar from '../components/Sidebar';
 
+//Services
+import { getProyectos } from '../service/proyecto.service';
+import { proyectos } from '@/interfaces/proyectos.interface';
+
+
 const steps = [
   { id: 1, title: 'Detalles del reclamo', subtitle: 'Información básica' },
   { id: 2, title: 'Carga de evidencia', subtitle: 'Sube tus archivos' },
@@ -15,6 +20,14 @@ export default function CreateReclamos() {
 
   const handleNextStep = () => {
     setActiveStep((prev) => (prev < steps.length ? prev + 1 : prev));
+  };
+
+  const fetchProyectos = async () => {
+    try {
+      const data: proyectos[] = await getProyectos();
+    } catch (error) {
+      console.error("Error al obtener proyectos:", error);
+    }
   };
 
   return (
@@ -41,7 +54,7 @@ export default function CreateReclamos() {
               <p className="text-3xl md:text-4xl font-bold text-[var(--color-text)] mb-2">
                 Presentar un nuevo reclamo
               </p>
-              <p className="text-sm md:text-base text-[var(--color-text-muted)] max-w-2xl">
+              <p className="text-sm md:text-base text-[var(--color-text-muted)] max-w-max">
                 Nuestro proceso guiado te ayuda a completar tu reclamo con precisión y seguridad,
                 paso a paso.
               </p>
@@ -179,6 +192,7 @@ export default function CreateReclamos() {
                       Fecha del incidente
                     </label>
                     <input
+                      defaultValue={new Date().toISOString().split('T')[0]}
                       id="incidentDate"
                       type="date"
                       className="mt-1 block w-full rounded-lg border border-[#d1d5db] bg-white px-3 py-2.5 text-sm text-[#111827] shadow-sm focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:outline-none"
@@ -200,7 +214,7 @@ export default function CreateReclamos() {
                     <input
                       id="claimTitle"
                       type="text"
-                      placeholder="Ej. Pantalla rota al recibir el producto"
+                      placeholder="Ej. Corte de luz"
                       className="mt-1 block w-full rounded-lg border border-[#d1d5db] bg-white px-3 py-2.5 text-sm text-[#111827] placeholder:text-[#9ca3af] shadow-sm focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:outline-none"
                     />
                   </div>

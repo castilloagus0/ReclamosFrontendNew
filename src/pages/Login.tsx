@@ -31,6 +31,7 @@ export default function Login() {
         window.location.href = '/user-dashboard';
       }
     } finally {
+      toast.warning('Error al iniciar sesión, verifique sus credenciales')
       setLoading(false);
     }
   };

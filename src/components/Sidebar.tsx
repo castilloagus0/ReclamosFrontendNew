@@ -39,7 +39,7 @@ export default function Sidebar({
   return (
     <aside
       className={`relative border-r border-[#e5e7eb] bg-white transition-all duration-300 ease-in-out ${
-        isSidebarOpen ? 'w-72' : 'w-16'
+        isSidebarOpen ? 'w-100' : 'w-16'
       } ${className}`}
     >
       <div className="flex items-center justify-between px-3 py-4 border-b border-[#e5e7eb]">

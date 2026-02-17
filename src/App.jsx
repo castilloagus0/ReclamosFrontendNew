@@ -12,27 +12,6 @@ import CreateReclamos from './pages/CreateReclamos';
 
 function App() {
   return (
-<<<<<<< HEAD
-    <BrowserRouter>
-      {/* Public routes */}
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-      </Routes>
-
-      {/* Private routes */}
-      <Routes element={<ProtectedRoute canAccess={user.role === 'user'} />}>
-        <Route path="/user/user-dashboard" element={<UserDashboard />} />
-        <Route path="/user/create-reclamo" element={<CreateReclamos />} />
-      </Routes>
-
-      <Routes element={<ProtectedRoute canAccess={user.role === 'admin'} />}>
-        <Route path="/admin/admin-dashboard" element={<AdminDashboard />} />
-      </Routes>
-      
-    </BrowserRouter>
-=======
     <LoadingProvider>
       <BrowserRouter>
         <Routes>
@@ -45,7 +24,6 @@ function App() {
         </Routes>
       </BrowserRouter>
     </LoadingProvider>
->>>>>>> bd982a9 (actualizacion de config y lista la parte de login y register - manejo de sesiones)
   );
 }
 

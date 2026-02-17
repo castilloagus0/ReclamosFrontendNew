@@ -79,12 +79,14 @@ export default function Navbar({ variant = 'default' }: { variant?: NavbarVarian
               <Link to="/user-dashboard" className={navLinkClass('/user-dashboard')}>
                 Mis Reclamos
               </Link>
-              <Button
-                text="Nuevo Reclamo"
-                onClick={() => navigate('/create-reclamo')}
-                color="primary"
-                icon={<Plus className="w-5 h-5" />}
-              />
+              {location.pathname !== '/create-reclamo' && (
+                <Button
+                  text="Nuevo Reclamo"
+                  onClick={() => navigate('/create-reclamo')}
+                  color="primary"
+                  icon={<Plus className="w-5 h-5" />}
+                />
+              )}
             </nav>
           )}
         </div>
@@ -113,7 +115,6 @@ export default function Navbar({ variant = 'default' }: { variant?: NavbarVarian
                     <p className="text-sm font-semibold text-[var(--color-text)] leading-tight">
                       {fullName}
                     </p>
-                    <p className="text-xs text-[var(--color-text-muted)]">Usuario verificado</p>
                   </div>
                   <div className="w-9 h-9 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center text-sm font-semibold shrink-0">
                     {initials}

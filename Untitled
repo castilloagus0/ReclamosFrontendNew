@@ -1,0 +1,1 @@
+`${import.meta.env.VITE_BACK_AUTH_DEV}/auth/register`
