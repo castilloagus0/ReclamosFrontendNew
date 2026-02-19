@@ -8,6 +8,11 @@ import { useNavigate } from 'react-router-dom';
 import { CreateReclamo } from '../service/reclamo.service';
 import { getProyectos } from '../service/proyecto.service';
 import { proyectos } from '@/interfaces/proyectos.interface';
+
+import { useLoading } from '../context/LoadingContext';
+import { toast } from 'sonner';
+
+
 import { useEffect } from 'react';
 
 export default function CreateReclamos() {
@@ -20,6 +25,7 @@ export default function CreateReclamos() {
     fechaIncidente: new Date().toISOString().split('T')[0]
   });
   const navigate = useNavigate();
+  const { setLoading } = useLoading();
 
   useEffect(() => {
     getProject();
@@ -36,6 +42,7 @@ export default function CreateReclamos() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true)
     try {
       const idUsuario = localStorage.getItem('id') || '';
       const nameUsuario = localStorage.getItem('fullName') || '';
@@ -50,8 +57,21 @@ export default function CreateReclamos() {
         nameUsuario
       );
 
-      console.log("result", result)
+      if(result){
+        toast.success(result.message)
+        setFormData({
+          titulo: '',
+          descripcion: '',
+          proyectoId: '',
+          tipoReclamoId: '',
+          fechaIncidente: new Date().toISOString().split('T')[0]
+        });
+        setLoading(false);
+      }
+
     } catch (error) {
+      toast.error("Error al crear el reclamo")
+      setLoading(false);
       console.error('Error al crear reclamo:', error);
     }
   };

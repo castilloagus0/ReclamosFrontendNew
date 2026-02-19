@@ -30,5 +30,13 @@ export async function CreateReclamo(titulo: string, descripcion: string, imagenR
     }
 }
 
-export async function GetReclamos(){}
+export async function getReclamosByUser(idUsuario: string){
+    try {
+        const response = await axios.get(`${import.meta.env.VITE_BACK_RECLAMOS_DEV}/reclamo/usuario/${idUsuario}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching reclamos:', error);
+        throw error;
+    }
+}
 
