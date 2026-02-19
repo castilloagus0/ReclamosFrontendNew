@@ -29,7 +29,7 @@ export async function RegisterAuth(email: string, password: string, fullName: st
 
 export async function LoginAuth(email: string, password: string) {
     try {
-        const response = await axios.post(`${import.meta.env.VITE_JWT_BACK}/auth/login`, { email, password });
+        const response = await axios.post(`${import.meta.env.VITE_BACK_AUTH_DEV}/auth/login`, { email, password });
         console.log(response.data);
 
         if (response.data.token) {
