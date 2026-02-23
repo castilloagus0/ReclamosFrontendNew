@@ -76,9 +76,14 @@ export default function Navbar({ variant = 'default' }: { variant?: NavbarVarian
               <Link to="/" className={navLinkClass('/')}>
                 Inicio
               </Link>
-              <Link to="/user-dashboard" className={navLinkClass('/user-dashboard')}>
-                Mis Reclamos
-              </Link>
+              {location.pathname !== '/user-dashboard' && (
+                <Button
+                  text="Mis reclamos"
+                  onClick={() => navigate('/user-dashboard')}
+                  color="primary"
+                  icon={<Plus className="w-5 h-5" />}
+                />
+              )}
               {location.pathname !== '/create-reclamo' && (
                 <Button
                   text="Nuevo Reclamo"
@@ -129,25 +134,6 @@ export default function Navbar({ variant = 'default' }: { variant?: NavbarVarian
                     <p className="px-4 py-2 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
                       Configuración de cuenta
                     </p>
-                    <Link
-                      to="/user-dashboard"
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text)] hover:bg-[#f3f4f6]"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <User className="w-4 h-4 text-[var(--color-text-muted)]" />
-                      Editar perfil
-                    </Link>
-                    <button
-                      type="button"
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-[var(--color-text)] hover:bg-[#f3f4f6]"
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        // TODO: navegar a preferencias cuando exista la ruta
-                      }}
-                    >
-                      <Settings className="w-4 h-4 text-[var(--color-text-muted)]" />
-                      Preferencias
-                    </button>
                     <button
                       type="button"
                       onClick={handleLogout}

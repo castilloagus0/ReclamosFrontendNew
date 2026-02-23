@@ -17,12 +17,20 @@ import { useEffect } from 'react';
 
 export default function CreateReclamos() {
   const [categorias, setCategorias] = useState<proyectos[]>([]);
+  const getLocalDate = () => {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [formData, setFormData] = useState({
     titulo: '',
     descripcion: '',
     proyectoId: '',
     tipoReclamoId: '',
-    fechaIncidente: new Date().toISOString().split('T')[0]
+    fechaIncidente: getLocalDate()
   });
   const navigate = useNavigate();
   const { setLoading } = useLoading();
@@ -64,7 +72,7 @@ export default function CreateReclamos() {
           descripcion: '',
           proyectoId: '',
           tipoReclamoId: '',
-          fechaIncidente: new Date().toISOString().split('T')[0]
+          fechaIncidente: getLocalDate()
         });
         setLoading(false);
       }

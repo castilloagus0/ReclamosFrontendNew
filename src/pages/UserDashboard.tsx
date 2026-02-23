@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import Navbar from '../components/Navbar';
 import { useLoading } from '../context/LoadingContext'; 
 import Button from '../components/Button';
 import Sidebar from '../components/Sidebar';
@@ -71,68 +72,10 @@ export default function UserDashboard() {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--color-bg-page)] text-[var(--color-text)]">
       {/* Top bar (estilo dashboard) */}
-      <header className="sticky top-0 z-50 w-full border-b border-[#e5e7eb] bg-white">
-        <div className="w-full px-6 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-6">
-            <Link to="/" className="flex items-center gap-3">
-              <LogoM />
-              <span className="text-xl font-bold text-[#1f2937] hover:opacity-80">
-                ClaimsApp
-              </span>
-            </Link>
-
-            <nav className="hidden md:flex items-center gap-6 text-sm">
-              <Link
-                to="/user-dashboard"
-                className="text-[#111827] font-semibold hover:text-[var(--color-primary)]"
-              >
-                Panel
-              </Link>
-              <a className="text-[#4b5563] hover:text-[var(--color-primary)]" href="#reclamos">
-                Reclamos
-              </a>
-              <a
-                className="text-[#4b5563] hover:text-[var(--color-primary)]"
-                href="#documentos"
-              >
-                Documentos
-              </a>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-[#f9fafb] px-3 py-2">
-              <span className="material-symbols-outlined text-[18px] text-[#6b7280]">
-                search
-              </span>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="w-[240px] bg-transparent text-sm outline-none placeholder:text-[#9ca3af] text-[#111827]"
-                placeholder="Buscar reclamos..."
-                aria-label="Buscar reclamos"
-              />
-            </div>
-
-            <Button
-              text="Crear nuevo reclamo"
-              color="primary"
-              onClick={() => navigate('/create-reclamo')}
-            />
-
-            <button
-              type="button"
-              className="ml-1 w-10 h-10 rounded-full border border-[#e5e7eb] bg-white flex items-center justify-center text-[#6b7280] hover:border-[#d1d5db] hover:bg-[#f9fafb] transition-colors"
-              aria-label="Cuenta"
-            >
-              <span className="material-symbols-outlined text-[20px]">person</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <Navbar />      
 
       <main className="flex-1 flex min-h-0">
-        <Sidebar title="Tus reclamos" initialOpen={true}>
+        <Sidebar title="Tus reclamos" initialOpen={false}>
           <div className="space-y-4">
             <div className="flex items-baseline justify-between">
               <div>
@@ -146,9 +89,9 @@ export default function UserDashboard() {
             <div className="flex gap-2">
               {(
                 [
-                  { id: 'todos', label: 'Todos' },
-                  { id: 'activos', label: 'Activos' },
-                  { id: 'resueltos', label: 'Resueltos' },
+                  { id: 'todos', label: 'Todos', activeColor: 'bg-cyan-500 border-cyan-500' },
+                  { id: 'activos', label: 'Activos', activeColor: 'bg-yellow-500 border-yellow-500' },
+                  { id: 'resueltos', label: 'Resueltos', activeColor: 'bg-green-500 border-green-500' },
                 ] as const
               ).map((t) => {
                 const isActive = tab === t.id;
@@ -157,10 +100,8 @@ export default function UserDashboard() {
                     key={t.id}
                     type="button"
                     onClick={() => setTab(t.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                      isActive
-                        ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                        : 'bg-white text-[#4b5563] border-[#e5e7eb] hover:border-[#d1d5db] hover:bg-[#f9fafb]'
+                    className={`rounded-lg border-2 px-3 py-1.5 text-sm font-semibold transition-colors ${
+                      isActive ? t.activeColor : 'border-[#e5e7eb] bg-white text-[#6b7280] hover:bg-[#f9fafb]'
                     }`}
                   >
                     {t.label}
