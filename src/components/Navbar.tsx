@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Button from './Button';
 import { Bell, Plus, User, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { use } from 'react';
 
 const LogoM = ({ className = 'w-6 h-6' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -15,6 +16,7 @@ export default function Navbar({ variant = 'default' }: { variant?: NavbarVarian
   const navigate = useNavigate();
   const location = useLocation();
   const [isAuth, setIsAuth] = useState(false);
+  const [isUser, setIsUser] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -22,6 +24,11 @@ export default function Navbar({ variant = 'default' }: { variant?: NavbarVarian
     const token = localStorage.getItem('token');
     setIsAuth(!!token);
   }, [location.pathname]); // re-evalúa al cambiar de ruta (p.ej. tras login)
+
+  useEffect(() => {
+    const roles = localStorage.getItem('roles');
+    setIsUser(roles === 'user');
+  }, [location.pathname]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -64,18 +71,15 @@ export default function Navbar({ variant = 'default' }: { variant?: NavbarVarian
       <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between">
         {/* Izquierda: logo + navegación (Inicio, Mis Reclamos, Nuevo Reclamo) */}
         <div className="flex items-center gap-6 md:gap-8">
-          <Link to="/" className="flex items-center gap-3 shrink-0">
+          <Link to="/ " className="flex items-center gap-3 shrink-0">
             <LogoM />
             <span className="text-xl font-bold text-[#1f2937] hover:opacity-80">
               ClaimFlow
             </span>
           </Link>
 
-          {isAuth && (
+          {isAuth && isUser && (
             <nav className="flex items-center gap-6">
-              <Link to="/" className={navLinkClass('/')}>
-                Inicio
-              </Link>
               {location.pathname !== '/user-dashboard' && (
                 <Button
                   text="Mis reclamos"
@@ -88,6 +92,18 @@ export default function Navbar({ variant = 'default' }: { variant?: NavbarVarian
                 <Button
                   text="Nuevo Reclamo"
                   onClick={() => navigate('/create-reclamo')}
+                  color="primary"
+                  icon={<Plus className="w-5 h-5" />}
+                />
+              )}
+            </nav>
+          )}
+          {isAuth && !isUser && (
+            <nav className="flex items-center gap-6">
+              {location.pathname !== '/admin-dashboard' && (
+                <Button
+                  text="Panel administrativo"
+                  onClick={() => navigate('/admin-dashboard')}
                   color="primary"
                   icon={<Plus className="w-5 h-5" />}
                 />

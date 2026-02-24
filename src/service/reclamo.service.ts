@@ -1,5 +1,17 @@
 import axios from "axios";
 
+
+export async function getReclamos( page: number = 1, limit: number = 10, ): Promise<any> {
+    try {
+        const params: any = { page, limit };
+        const response = await axios.get(`${import.meta.env.VITE_BACK_RECLAMOS_DEV}/reclamo`, { params });
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching reclamos:', error);
+        throw error;
+    }
+}
+
 export async function CreateReclamo(titulo: string, descripcion: string, imagenReclamo: string, proyectoId: string, tipoReclamoId: string, idUsuario: string, nameUsuario: string){
     try{
         const payload = {
