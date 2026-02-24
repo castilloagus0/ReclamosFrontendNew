@@ -31,3 +31,15 @@ export interface ReclamoI {
   historialAreas: any[];
   tipoReclamoId: string;
 }
+
+export type ClaimPriority = 'Alta' | 'Media' | 'Baja';
+export type ClaimStatus = 'Pendiente' | 'En progreso' | 'Resuelto';
+
+export type ClaimRow = {
+  id: string;
+  user: string;
+  email: string;
+  status: ClaimStatus;
+  priority: ClaimPriority;
+  date: string;
+};

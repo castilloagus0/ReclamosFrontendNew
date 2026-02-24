@@ -1,86 +1,221 @@
-import React, { useMemo, useState } from 'react';
-import Sidebar from '../components/Sidebar';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import Button from '../components/Button';
+import { LogoShield } from '../components/Icons';
 
 import Navbar from '../components/Navbar';
+
+import {
+  Chart as ChartJS,
+  ArcElement,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+  ChartOptions,
+  ChartData,
+} from 'chart.js';
 
 //Service
 import { getReclamos } from '../service/reclamo.service';
 
-type ClaimPriority = 'Alta' | 'Media' | 'Baja';
-type ClaimStatus = 'Pendiente' | 'En progreso' | 'Resuelto';
+//Interface
+import { ReclamoI, ClaimRow, ClaimPriority, ClaimStatus } from '../interfaces/reclamo.interface';
 
-type ClaimRow = {
-  id: string;
-  user: string;
-  email: string;
-  status: ClaimStatus;
-  priority: ClaimPriority;
-  date: string;
+
+//context
+import { statusPillClasses, priorityTextClasses } from '../context/functions';
+
+
+
+function mapEstadoToClaimStatus(nombreEstado: string): ClaimStatus {
+  const normalized = nombreEstado.toLowerCase();
+
+  if (normalized === 'iniciado' || normalized === 'iniciada' || normalized === 'pendiente') {
+    return 'Pendiente';
+  }
+
+  if (normalized === 'en progreso' || normalized === 'en proceso' || normalized === 'en curso') {
+    return 'En progreso';
+  }
+
+  return 'Resuelto';
+}
+
+function mapPrioridadToClaimPriority(prioridad: string | null): ClaimPriority {
+  if (!prioridad) return 'Media';
+
+  const normalized = prioridad.toLowerCase();
+
+  if (normalized === 'alta') return 'Alta';
+  if (normalized === 'baja') return 'Baja';
+
+  return 'Media';
+}
+
+ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
+
+type StatusChartData = {
+  labels: string[];
+  values: number[];
 };
 
-const claimsMock: ClaimRow[] = [
-  {
-    id: '#CLM-2084',
-    user: 'John Doe',
-    email: 'j.doe@example.com',
-    status: 'Pendiente',
-    priority: 'Alta',
-    date: '24 oct 2023',
-  },
-  {
-    id: '#CLM-2085',
-    user: 'Sarah Adams',
-    email: 's.adams@cloud.com',
-    status: 'En progreso',
-    priority: 'Media',
-    date: '23 oct 2023',
-  },
-  {
-    id: '#CLM-2086',
-    user: 'Mike Kelly',
-    email: 'm.kelly@service.io',
-    status: 'Resuelto',
-    priority: 'Baja',
-    date: '22 oct 2023',
-  },
-];
+type PriorityChartData = {
+  labels: string[];
+  values: number[];
+};
 
-function statusPillClasses(status: ClaimStatus) {
-  switch (status) {
-    case 'Pendiente':
-      return 'bg-amber-50 text-amber-700 border-amber-100';
-    case 'En progreso':
-      return 'bg-blue-50 text-blue-700 border-blue-100';
-    case 'Resuelto':
-      return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-    default:
-      return 'bg-gray-50 text-gray-700 border-gray-100';
-  }
+function StatusBarChart({ data }: { data: StatusChartData }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const chartRef = useRef<ChartJS<'bar'> | null>(null);
+
+  useEffect(() => {
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartRef.current) {
+      chartRef.current.destroy();
+    }
+
+    const chartData: ChartData<'bar'> = {
+      labels: data.labels,
+      datasets: [
+        {
+          label: 'Cantidad',
+          data: data.values,
+          backgroundColor: ['#fbbf24', '#3b82f6', '#10b981'],
+          borderRadius: 12,
+          maxBarThickness: 40,
+        },
+      ],
+    };
+
+    const options: ChartOptions<'bar'> = {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: '#6b7280', font: { size: 11 } },
+        },
+        y: {
+          grid: { color: '#e5e7eb' },
+          ticks: { color: '#9ca3af', stepSize: 1, precision: 0 },
+          beginAtZero: true,
+        },
+      },
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          backgroundColor: '#111827',
+          padding: 8,
+          cornerRadius: 8,
+          displayColors: false,
+        },
+      },
+    };
+
+    chartRef.current = new ChartJS(ctx, {
+      type: 'bar',
+      data: chartData,
+      options,
+    });
+
+    return () => {
+      chartRef.current?.destroy();
+      chartRef.current = null;
+    };
+  }, [data]);
+
+  return (
+    <div className="h-40 md:h-56 lg:h-64">
+      <canvas ref={canvasRef} />
+    </div>
+  );
 }
 
-function priorityTextClasses(priority: ClaimPriority) {
-  switch (priority) {
-    case 'Alta':
-      return 'text-rose-600';
-    case 'Media':
-      return 'text-amber-600';
-    case 'Baja':
-      return 'text-emerald-600';
-    default:
-      return 'text-gray-600';
-  }
-}
+function PriorityDoughnutChart({
+  data,
+  total,
+}: {
+  data: PriorityChartData;
+  total: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const chartRef = useRef<ChartJS<'doughnut'> | null>(null);
 
-const LogoShield = ({ className = 'w-8 h-8' }: { className?: string }) => (
-  <div className="flex items-center justify-center rounded-2xl bg-[var(--color-primary)]/10">
-    <span className={`material-symbols-outlined text-[var(--color-primary)] ${className}`}>
-      verified_user
-    </span>
-  </div>
-);
+  useEffect(() => {
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartRef.current) {
+      chartRef.current.destroy();
+    }
+
+    const chartData: ChartData<'doughnut'> = {
+      labels: data.labels,
+      datasets: [
+        {
+          data: data.values,
+          backgroundColor: ['#f97373', '#facc15', '#22c55e'],
+          borderWidth: 0,
+          hoverOffset: 6,
+        },
+      ],
+    };
+
+    const options: ChartOptions<'doughnut'> = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          backgroundColor: '#111827',
+          padding: 8,
+          cornerRadius: 8,
+          callbacks: {
+            label(context) {
+              const label = String(context.label || '');
+              const value = Number(context.parsed) || 0;
+              const percent = total ? Math.round((value / total) * 100) : 0;
+              return `${label}: ${value} (${percent}%)`;
+            },
+          },
+        },
+      },
+      cutout: '65%',
+    };
+
+    chartRef.current = new ChartJS(ctx, {
+      type: 'doughnut',
+      data: chartData,
+      options,
+    });
+
+    return () => {
+      chartRef.current?.destroy();
+      chartRef.current = null;
+    };
+  }, [data, total]);
+
+  return (
+    <div className="w-40 h-40">
+      <canvas ref={canvasRef} />
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
+  const [cantReclamos, setAmount] = useState(0)
+  const [claimsIniciados, setClaimsStatus] = useState(0)
+  const [claims, setClaims] = useState<ClaimRow[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit] = useState(10);
+  const [isLastPage, setIsLastPage] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Todos' | ClaimStatus>('Todos');
   const [areaFilter, setAreaFilter] = useState<'Todas las áreas' | 'Soporte' | 'Finanzas'>(
@@ -89,7 +224,7 @@ export default function AdminDashboard() {
   const [priorityFilter, setPriorityFilter] = useState<'Todas' | ClaimPriority>('Todas');
 
   const filteredClaims = useMemo(() => {
-    return claimsMock.filter((claim) => {
+    return claims.filter((claim) => {
       if (statusFilter !== 'Todos' && claim.status !== statusFilter) return false;
       if (priorityFilter !== 'Todas' && claim.priority !== priorityFilter) return false;
 
@@ -101,79 +236,104 @@ export default function AdminDashboard() {
         claim.email.toLowerCase().includes(q)
       );
     });
-  }, [search, statusFilter, priorityFilter]);
+  }, [claims, search, statusFilter, priorityFilter]);
+
+  const analytics = useMemo(() => {
+    const source = filteredClaims;
+    const total = source.length || 1;
+
+    const byStatus: Record<ClaimStatus, number> = {
+      Pendiente: 0,
+      'En progreso': 0,
+      Resuelto: 0,
+    };
+
+    const byPriority: Record<ClaimPriority, number> = {
+      Alta: 0,
+      Media: 0,
+      Baja: 0,
+    };
+
+    source.forEach((c) => {
+      byStatus[c.status] = (byStatus[c.status] ?? 0) + 1;
+      byPriority[c.priority] = (byPriority[c.priority] ?? 0) + 1;
+    });
+
+    const statusSeries = (Object.keys(byStatus) as ClaimStatus[]).map((k) => ({
+      label: k,
+      value: byStatus[k],
+      percent: Math.round((byStatus[k] / total) * 100),
+    }));
+
+    const prioritySeries = (Object.keys(byPriority) as ClaimPriority[]).map((k) => ({
+      label: k,
+      value: byPriority[k],
+      percent: Math.round((byPriority[k] / total) * 100),
+    }));
+
+    return { statusSeries, prioritySeries };
+  }, [filteredClaims]);
+
+
+  useEffect(() => {
+    const obtenerReclamos = async () => {
+      try {
+        const data = await getReclamos(currentPage, limit);
+
+        const reclamos: ReclamoI[] = Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data)
+          ? data
+          : [];
+
+        console.log("reclamos", reclamos)
+
+        const totalFromResponse =
+          typeof data?.total === 'number'
+            ? data.total
+            : typeof data?.totalDocs === 'number'
+            ? data.totalDocs
+            : reclamos.length;
+
+        setAmount(totalFromResponse);
+
+        setClaimsStatus(
+          reclamos.filter(
+            (r) =>
+              r.estado?.nombre === 'Iniciado' ||
+              r.estado?.nombre === 'Iniciada' ||
+              r.estado?.nombre?.toLowerCase() === 'pendiente',
+          ).length,
+        );
+
+        const mappedClaims: ClaimRow[] = reclamos.map((r) => ({
+          id: r._id,
+          user: r.nameUsuario,
+          email: String(r.idUsuario ?? ''),
+          status: mapEstadoToClaimStatus(r.estado?.nombre ?? ''),
+          priority: mapPrioridadToClaimPriority(r.prioridad),
+          date: new Date(r.fechaHoraInicio).toLocaleDateString('es-AR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+          }),
+        }));
+
+        setClaims(mappedClaims);
+        setIsLastPage(reclamos.length < limit);
+      } catch (error) {
+        console.error('Error fetching reclamos:', error);
+      }
+    };
+
+    obtenerReclamos();
+  }, [currentPage, limit]);
 
   return (
     <div>
       <Navbar />
       <div className="min-h-screen flex bg-[#f3f4f6] text-[#111827]">
         {/* Sidebar admin */}
-        <Sidebar
-          userType="admin"
-          title="Panel de reclamos"
-          initialOpen={false}
-          className="hidden md:block"
-        >
-          <div className="space-y-6 pt-2">
-            <div className="flex items-center gap-3 px-1">
-              <LogoShield className="text-[26px]" />
-              <div>
-                <p className="text-sm font-bold text-[#111827]">Panel de reclamos</p>
-                <p className="text-[11px] uppercase tracking-wider text-[#9ca3af]">
-                  Enterprise v2.4
-                </p>
-              </div>
-            </div>
-
-            <nav className="space-y-1 text-sm">
-              {[
-                { icon: 'dashboard', label: 'Dashboard', active: true },
-                { icon: 'fact_check', label: 'Listado de reclamos', active: false },
-                { icon: 'monitoring', label: 'Analíticas', active: false },
-                { icon: 'group', label: 'Usuarios', active: false },
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                    item.active
-                      ? 'bg-[var(--color-primary)] text-white'
-                      : 'text-[#4b5563] hover:bg-[#f3f4f6]'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[18px]">{item.icon}</span>
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </nav>
-
-            <div className="pt-4 mt-4 border-t border-[#e5e7eb] space-y-3">
-              <button
-                type="button"
-                className="w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-[#4b5563] hover:bg-[#f3f4f6]"
-              >
-                <span className="inline-flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px]">settings</span>
-                  <span>Configuración</span>
-                </span>
-                <span className="text-[10px] rounded-full bg-[#e5e7eb] px-2 py-0.5">Admin</span>
-              </button>
-
-              <div className="flex items-center gap-3 rounded-xl bg-[#f9fafb] px-3 py-3">
-                <div className="w-9 h-9 rounded-full bg-[#e5e7eb] flex items-center justify-center text-xs font-bold text-[#4b5563]">
-                  AR
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-[#111827]">Alex Rivera</p>
-                  <p className="text-[11px] text-[#6b7280]">Administrador del sistema</p>
-                </div>
-                <span className="material-symbols-outlined text-[18px] text-[#9ca3af]">
-                  expand_more
-                </span>
-              </div>
-            </div>
-          </div>
-        </Sidebar>
 
         {/* Main content */}
         <main className="flex-1 min-h-0 overflow-y-auto">
@@ -196,12 +356,6 @@ export default function AdminDashboard() {
                   className="!px-4 !py-2 text-sm"
                   icon={<span className="material-symbols-outlined text-[18px]">download</span>}
                 />
-                <Button
-                  text="Nuevo reclamo manual"
-                  color="primary"
-                  className="!px-4 !py-2 text-sm"
-                  icon={<span className="material-symbols-outlined text-[18px]">add</span>}
-                />
               </div>
             </div>
 
@@ -214,10 +368,9 @@ export default function AdminDashboard() {
                   </p>
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[11px] font-semibold">
                     <span className="material-symbols-outlined text-[16px]">trending_up</span>
-                    +12%
                   </span>
                 </div>
-                <p className="text-2xl font-extrabold text-[#111827]">1,284</p>
+                <p className="text-2xl font-extrabold text-[#111827]">{cantReclamos}</p>
                 <p className="mt-1 text-xs text-[#9ca3af]">Últimos 30 días</p>
               </article>
 
@@ -236,7 +389,7 @@ export default function AdminDashboard() {
                 <p className="text-xs font-bold tracking-wider uppercase text-[#6b7280] mb-2">
                   Reclamos sin asignar
                 </p>
-                <p className="text-2xl font-extrabold text-[#111827]">18</p>
+                <p className="text-2xl font-extrabold text-[#111827]">{claimsIniciados}</p>
                 <p className="mt-1 text-xs text-[#9ca3af]">Requieren asignación</p>
               </article>
 
@@ -321,7 +474,6 @@ export default function AdminDashboard() {
                 <table className="min-w-full text-left border-separate border-spacing-y-2 px-4 md:px-0">
                   <thead>
                     <tr className="text-xs font-semibold text-[#6b7280]">
-                      <th className="px-4 py-2">ID reclamo</th>
                       <th className="px-4 py-2">Usuario</th>
                       <th className="px-4 py-2">Estado</th>
                       <th className="px-4 py-2">Prioridad</th>
@@ -332,11 +484,6 @@ export default function AdminDashboard() {
                   <tbody>
                     {filteredClaims.map((claim) => (
                       <tr key={claim.id}>
-                        <td className="px-4 py-2">
-                          <span className="text-xs font-semibold text-[#6b7280]">
-                            {claim.id}
-                          </span>
-                        </td>
                         <td className="px-4 py-2">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-[#e5e7eb] flex items-center justify-center text-xs font-semibold text-[#4b5563]">
@@ -419,14 +566,17 @@ export default function AdminDashboard() {
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-[#e5e7eb] mt-2">
                 <p className="text-xs text-[#6b7280]">
                   Mostrando <span className="font-semibold">1 a {filteredClaims.length}</span> de{' '}
-                  {claimsMock.length} reclamos
+                  {cantReclamos} reclamos
                 </p>
 
                 <div className="inline-flex items-center gap-1 rounded-xl border border-[#e5e7eb] bg-[#f9fafb] px-1 py-1 text-xs font-medium text-[#4b5563]">
                   <button
                     type="button"
                     className="px-2 py-1 rounded-lg hover:bg-white disabled:opacity-50"
-                    disabled
+                    disabled={currentPage === 1}
+                    onClick={() => {
+                      if (currentPage > 1) setCurrentPage((prev) => prev - 1);
+                    }}
                   >
                     Anterior
                   </button>
@@ -435,18 +585,88 @@ export default function AdminDashboard() {
                       key={page}
                       type="button"
                       className={`w-7 h-7 rounded-lg text-center ${
-                        page === 1 ? 'bg-white shadow-sm text-[var(--color-primary)]' : 'hover:bg-white'
+                        page === currentPage
+                          ? 'bg-white shadow-sm text-[var(--color-primary)]'
+                          : 'hover:bg-white'
                       }`}
+                      onClick={() => setCurrentPage(page)}
                     >
                       {page}
                     </button>
                   ))}
                   <button
                     type="button"
-                    className="px-2 py-1 rounded-lg hover:bg-white"
+                    className="px-2 py-1 rounded-lg hover:bg-white disabled:opacity-50"
+                    disabled={isLastPage}
+                    onClick={() => {
+                      if (!isLastPage) setCurrentPage((prev) => prev + 1);
+                    }}
                   >
                     Siguiente
                   </button>
+                </div>
+              </div>
+            </section>
+
+            {/* Analytics */}
+            <section className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-6 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <h2 className="text-lg md:text-xl font-extrabold text-[#111827]">
+                    Analíticas de reclamos
+                  </h2>
+                  <p className="mt-1 text-xs md:text-sm text-[#6b7280]">
+                    Distribución visual de los reclamos por estado y prioridad (página actual).
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-[#6b7280]">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#f3f4ff] text-[#3730a3] px-2 py-0.5 font-semibold">
+                    <span className="material-symbols-outlined text-[16px]">insights</span>
+                    Vista analítica
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Status bar chart */}
+                <div className="lg:col-span-2 space-y-4">
+                  <h3 className="text-xs font-bold tracking-wider uppercase text-[#6b7280]">
+                    Reclamos por estado
+                  </h3>
+                  <div className="bg-[#f9fafb] rounded-2xl border border-[#e5e7eb] p-4">
+                    <StatusBarChart
+                      data={{
+                        labels: analytics.statusSeries.map((s) => s.label),
+                        values: analytics.statusSeries.map((s) => s.value),
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Priority doughnut chart */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold tracking-wider uppercase text-[#6b7280]">
+                    Prioridad de reclamos
+                  </h3>
+                  <div className="bg-[#f9fafb] rounded-2xl border border-[#e5e7eb] p-4 flex flex-col items-center justify-center gap-3">
+                    <PriorityDoughnutChart
+                      data={{
+                        labels: analytics.prioritySeries.map((p) => p.label),
+                        values: analytics.prioritySeries.map((p) => p.value),
+                      }}
+                      total={
+                        analytics.prioritySeries.reduce((acc, item) => acc + item.value, 0) || 0
+                      }
+                    />
+                    <div className="text-center space-y-1">
+                      <p className="text-xs font-semibold text-[#111827]">
+                        Total página actual
+                      </p>
+                      <p className="text-[11px] text-[#6b7280]">
+                        {claims.length || 0} reclamos distribuidos por prioridad.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>

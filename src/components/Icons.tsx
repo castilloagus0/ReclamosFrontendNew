@@ -64,3 +64,11 @@ export const ArrowRightIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
   </svg>
 );
+
+export const LogoShield = ({ className = 'w-8 h-8' }: { className?: string }) => (
+  <div className="flex items-center justify-center rounded-2xl bg-[var(--color-primary)]/10">
+    <span className={`material-symbols-outlined text-[var(--color-primary)] ${className}`}>
+      verified_user
+    </span>
+  </div>
+);

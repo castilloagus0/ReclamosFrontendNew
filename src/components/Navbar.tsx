@@ -116,16 +116,6 @@ export default function Navbar({ variant = 'default' }: { variant?: NavbarVarian
         <nav className="flex items-center gap-4">
           {isAuth ? (
             <>
-              {/* Mock: conectar con backend cuando esté listo el endpoint de notificaciones */}
-              <button
-                type="button"
-                className="relative p-2 rounded-full hover:bg-[#f3f4f6] text-[var(--color-text)]"
-                aria-label="Notificaciones"
-              >
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-              </button>
-
               <div className="relative" ref={dropdownRef}>
                 <button
                   type="button"
