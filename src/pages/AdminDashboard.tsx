@@ -3,11 +3,14 @@ import Button from '../components/Button';
 import { LogoShield } from '../components/Icons';
 
 import Navbar from '../components/Navbar';
+import MenuDashboard, { type AdminView } from '../components/menuDashboard';
 
 import {
   Chart as ChartJS,
   ArcElement,
   BarElement,
+  BarController,
+  DoughnutController,
   CategoryScale,
   LinearScale,
   Tooltip,
@@ -18,9 +21,11 @@ import {
 
 //Service
 import { getReclamos } from '../service/reclamo.service';
+import { getUsuarios } from '../service/usuarios.service';
 
 //Interface
 import { ReclamoI, ClaimRow, ClaimPriority, ClaimStatus } from '../interfaces/reclamo.interface';
+import { Usuario } from '../interfaces/usuarios.interface';
 
 
 //context
@@ -53,7 +58,16 @@ function mapPrioridadToClaimPriority(prioridad: string | null): ClaimPriority {
   return 'Media';
 }
 
-ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
+ChartJS.register(
+  ArcElement,
+  BarElement,
+  BarController,
+  DoughnutController,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+);
 
 type StatusChartData = {
   labels: string[];
@@ -210,8 +224,10 @@ function PriorityDoughnutChart({
 }
 
 export default function AdminDashboard() {
+  const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [cantReclamos, setAmount] = useState(0)
   const [claimsIniciados, setClaimsStatus] = useState(0)
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [claims, setClaims] = useState<ClaimRow[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(10);
@@ -222,6 +238,15 @@ export default function AdminDashboard() {
     'Todas las áreas',
   );
   const [priorityFilter, setPriorityFilter] = useState<'Todas' | ClaimPriority>('Todas');
+  const [usuariosPage, setUsuariosPage] = useState(1);
+  const [usuariosPerPage] = useState(8);
+
+  const paginatedUsuarios = useMemo(() => {
+    const start = (usuariosPage - 1) * usuariosPerPage;
+    return usuarios.slice(start, start + usuariosPerPage);
+  }, [usuarios, usuariosPage, usuariosPerPage]);
+
+  const totalUsuariosPages = Math.ceil(usuarios.length / usuariosPerPage);
 
   const filteredClaims = useMemo(() => {
     return claims.filter((claim) => {
@@ -274,6 +299,21 @@ export default function AdminDashboard() {
     return { statusSeries, prioritySeries };
   }, [filteredClaims]);
 
+  const statusChartData = useMemo<StatusChartData>(
+    () => ({
+      labels: analytics.statusSeries.map((s) => s.label),
+      values: analytics.statusSeries.map((s) => s.value),
+    }),
+    [analytics],
+  );
+
+  const priorityChartData = useMemo<PriorityChartData>(
+    () => ({
+      labels: analytics.prioritySeries.map((p) => p.label),
+      values: analytics.prioritySeries.map((p) => p.value),
+    }),
+    [analytics],
+  );
 
   useEffect(() => {
     const obtenerReclamos = async () => {
@@ -329,37 +369,188 @@ export default function AdminDashboard() {
     obtenerReclamos();
   }, [currentPage, limit]);
 
+  useEffect(() => {
+    const obtenerUsuarios = async () => {
+      const data: Usuario[] = await getUsuarios();
+      setUsuarios(data);
+    };
+    obtenerUsuarios();
+  }, []);
+
   return (
     <div>
-      <Navbar />
-      <div className="min-h-screen flex bg-[#f3f4f6] text-[#111827]">
-        {/* Sidebar admin */}
+      <div className="min-h-screen flex overflow-hidden bg-[#f3f4f6] text-[#111827]">
+        <MenuDashboard
+          variant="admin"
+          activeView={activeView}
+          onViewChange={setActiveView}
+        />
 
         {/* Main content */}
-        <main className="flex-1 min-h-0 overflow-y-auto">
+        <main className="flex-1 min-h-0 min-w-0 overflow-y-auto">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-6 space-y-6">
-            {/* Header */}
+            {/* Header dinámico */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h4 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#111827]">
-                  Resumen de reclamos
+                  {activeView === 'dashboard' && 'Resumen de reclamos'}
+                  {activeView === 'reclamos' && 'Lista de reclamos'}
+                  {activeView === 'graficos' && 'Analytics'}
+                  {activeView === 'usuarios' && 'Gestión de usuarios'}
                 </h4>
                 <p className="mt-1 text-sm text-[#6b7280] max-w-xl">
-                  Gestioná, revisá y resolvé los reclamos formales de clientes desde un único panel.
+                  {activeView === 'dashboard' &&
+                    'Gestioná, revisá y resolvé los reclamos formales de clientes desde un único panel.'}
+                  {activeView === 'reclamos' &&
+                    'Explorá y filtrá todos los reclamos registrados en el sistema.'}
+                  {activeView === 'graficos' &&
+                    'Visualizá la distribución de reclamos por estado y prioridad.'}
+                  {activeView === 'usuarios' &&
+                    'Administrá los usuarios y sus permisos en el sistema.'}
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
-                <Button
-                  text="Exportar reporte"
-                  color="outline"
-                  className="!px-4 !py-2 text-sm"
-                  icon={<span className="material-symbols-outlined text-[18px]">download</span>}
-                />
-              </div>
             </div>
 
-            {/* Metrics cards */}
+            {/* Vista Usuarios - tabla con paginador */}
+            {activeView === 'usuarios' && (
+              <section className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left">
+                    <thead className="bg-[#f9fafb] border-b border-[#e5e7eb]">
+                      <tr>
+                        <th className="px-5 py-4 text-xs font-bold tracking-wider uppercase text-[#6b7280]">
+                          Usuario
+                        </th>
+                        <th className="px-5 py-4 text-xs font-bold tracking-wider uppercase text-[#6b7280]">
+                          Email
+                        </th>
+                        <th className="px-5 py-4 text-xs font-bold tracking-wider uppercase text-[#6b7280]">
+                          Roles
+                        </th>
+                        <th className="px-5 py-4 text-xs font-bold tracking-wider uppercase text-[#6b7280]">
+                          Fecha de creación
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#e5e7eb]">
+                      {paginatedUsuarios.map((usuario) => (
+                        <tr
+                          key={usuario._id}
+                          className="hover:bg-[#f9fafb] transition-colors duration-150"
+                        >
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                                {usuario.fullName
+                                  ? usuario.fullName
+                                      .split(' ')
+                                      .map((n) => n[0])
+                                      .join('')
+                                      .slice(0, 2)
+                                      .toUpperCase()
+                                  : usuario.email[0].toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-[#111827]">
+                                  {usuario.fullName || '—'}
+                                </p>
+                                <p className="text-xs text-[#9ca3af]">ID: {usuario._id.slice(-8)}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-sm text-[#4b5563]">{usuario.email}</span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex flex-wrap gap-1.5">
+                              <span>{usuario.roles}</span>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-sm text-[#4b5563]">
+                              {new Date(usuario.createdAt).toLocaleDateString('es-AR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                              })}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {usuarios.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <span className="material-symbols-outlined text-5xl text-[#e5e7eb]">group</span>
+                    <p className="mt-2 text-sm font-medium text-[#6b7280]">No hay usuarios</p>
+                    <p className="text-xs text-[#9ca3af]">Los usuarios aparecerán aquí cuando se registren.</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-4 border-t border-[#e5e7eb] bg-[#f9fafb]">
+                    <p className="text-xs text-[#6b7280]">
+                      Mostrando{' '}
+                      <span className="font-semibold text-[#111827]">
+                        {((usuariosPage - 1) * usuariosPerPage) + 1} a{' '}
+                        {Math.min(usuariosPage * usuariosPerPage, usuarios.length)}
+                      </span>{' '}
+                      de {usuarios.length} usuarios
+                    </p>
+                    <div className="inline-flex items-center gap-0.5 rounded-xl border border-[#e5e7eb] bg-white p-1 shadow-sm">
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium text-[#4b5563] hover:bg-[#f3f4f6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        disabled={usuariosPage === 1}
+                        onClick={() => setUsuariosPage((p) => Math.max(1, p - 1))}
+                      >
+                        Anterior
+                      </button>
+                      <div className="flex items-center gap-0.5 px-1">
+                        {Array.from({ length: Math.min(5, totalUsuariosPages) }, (_, i) => {
+                          let page: number;
+                          if (totalUsuariosPages <= 5) {
+                            page = i + 1;
+                          } else if (usuariosPage <= 3) {
+                            page = i + 1;
+                          } else if (usuariosPage >= totalUsuariosPages - 2) {
+                            page = totalUsuariosPages - 4 + i;
+                          } else {
+                            page = usuariosPage - 2 + i;
+                          }
+                          return (
+                            <button
+                              key={page}
+                              type="button"
+                              className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                                page === usuariosPage
+                                  ? 'bg-indigo-600 text-white shadow-sm'
+                                  : 'text-[#6b7280] hover:bg-[#f3f4f6]'
+                              }`}
+                              onClick={() => setUsuariosPage(page)}
+                            >
+                              {page}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium text-[#4b5563] hover:bg-[#f3f4f6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        disabled={usuariosPage >= totalUsuariosPages}
+                        onClick={() => setUsuariosPage((p) => Math.min(totalUsuariosPages, p + 1))}
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* Metrics cards - solo en dashboard */}
+            {(activeView === 'dashboard') && (
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <article className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-4 flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
@@ -401,8 +592,10 @@ export default function AdminDashboard() {
                 <p className="mt-1 text-xs text-[#9ca3af]">Últimos 7 días</p>
               </article>
             </section>
+            )}
 
-            {/* Filters row */}
+            {/* Filters row - dashboard y reclamos */}
+            {(activeView === 'dashboard') && (
             <section className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-4 space-y-4">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                 <div className="flex-1 flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-[#f9fafb] px-3 py-2">
@@ -607,8 +800,10 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </section>
+            )}
 
-            {/* Analytics */}
+            {/* Analytics - dashboard y gráficos */}
+            {(activeView === 'graficos') && (
             <section className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-6 space-y-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div>
@@ -634,12 +829,7 @@ export default function AdminDashboard() {
                     Reclamos por estado
                   </h3>
                   <div className="bg-[#f9fafb] rounded-2xl border border-[#e5e7eb] p-4">
-                    <StatusBarChart
-                      data={{
-                        labels: analytics.statusSeries.map((s) => s.label),
-                        values: analytics.statusSeries.map((s) => s.value),
-                      }}
-                    />
+                    <StatusBarChart data={statusChartData} />
                   </div>
                 </div>
 
@@ -650,10 +840,7 @@ export default function AdminDashboard() {
                   </h3>
                   <div className="bg-[#f9fafb] rounded-2xl border border-[#e5e7eb] p-4 flex flex-col items-center justify-center gap-3">
                     <PriorityDoughnutChart
-                      data={{
-                        labels: analytics.prioritySeries.map((p) => p.label),
-                        values: analytics.prioritySeries.map((p) => p.value),
-                      }}
+                      data={priorityChartData}
                       total={
                         analytics.prioritySeries.reduce((acc, item) => acc + item.value, 0) || 0
                       }
@@ -670,6 +857,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </section>
+            )}
           </div>
         </main>
       </div>

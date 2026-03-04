@@ -10,7 +10,7 @@ const LogoM = ({ className = 'w-6 h-6' }) => (
   </svg>
 );
 
-type NavbarVariant = 'default' | 'auth';
+type NavbarVariant = 'default' | 'auth'; 
 
 export default function Navbar({ variant = 'default' }: { variant?: NavbarVariant }) {
   const navigate = useNavigate();

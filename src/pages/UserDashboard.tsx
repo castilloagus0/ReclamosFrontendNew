@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useLoading } from '../context/LoadingContext'; 
 import Button from '../components/Button';
-import Sidebar from '../components/Sidebar';
+import MenuDashboard from '../components/menuDashboard';
 
 import { toast } from 'sonner';
 
@@ -75,7 +75,7 @@ export default function UserDashboard() {
       <Navbar />      
 
       <main className="flex-1 flex min-h-0">
-        <Sidebar title="Tus reclamos" initialOpen={false}>
+        <MenuDashboard variant="user">
           <div className="space-y-4">
             <div className="flex items-baseline justify-between">
               <div>
@@ -153,7 +153,7 @@ export default function UserDashboard() {
               )}
             </div>
           </div>
-        </Sidebar>
+        </MenuDashboard>
 
         {/* Right content */}
         <section className="flex-1 min-h-0 overflow-y-auto px-4 py-6 md:px-8 lg:px-10">
