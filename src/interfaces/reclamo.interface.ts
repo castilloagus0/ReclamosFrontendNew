@@ -1,16 +1,30 @@
+
+// ─── Tipos derivados del backend ──────────────────────────────────────────────
+
+/** Valores posibles del campo estado.nombre que llegan desde el backend */
+export type EstadoNombre = 'Iniciada' | 'En proceso' | 'Resuelta';
+
+/** Valores posibles del campo prioridad */
+export type PrioridadNombre = 'Alta' | 'Media' | 'Baja';
+
+// ─── Sub-interfaces ───────────────────────────────────────────────────────────
+
 export interface EstadoI {
   _id: string;
-  nombre: string;
+  nombre: EstadoNombre;
   descripcion: string;
 }
 
 export interface CambioEstadoI {
   _id: string;
   fechaHoraCambio: string;
+  /** Array de referencias a estado (pueden llegar como string o como objeto con $oid) */
   estadoId: string[];
   estado: EstadoI;
-  idUsuario: number;
+  idUsuario: number | string;
 }
+
+// ─── Entidad principal ────────────────────────────────────────────────────────
 
 export interface ReclamoI {
   _id: string;
@@ -22,7 +36,7 @@ export interface ReclamoI {
   imagenReclamo: string;
   areaId: string | null;
   proyectoId: string;
-  prioridad: string | null;
+  prioridad: PrioridadNombre | null;
   criticidad: string | null;
   estado: EstadoI;
   idUsuario: string;
@@ -32,14 +46,7 @@ export interface ReclamoI {
   tipoReclamoId: string;
 }
 
-export type ClaimPriority = 'Alta' | 'Media' | 'Baja';
-export type ClaimStatus = 'Pendiente' | 'En progreso' | 'Resuelto';
+// ─── Opciones de filtro para la UI ────────────────────────────────────────────
 
-export type ClaimRow = {
-  id: string;
-  user: string;
-  email: string;
-  status: ClaimStatus;
-  priority: ClaimPriority;
-  date: string;
-};
+export type FiltroEstado = 'Todos' | EstadoNombre;
+export type FiltroPrioridad = 'Todas' | PrioridadNombre;

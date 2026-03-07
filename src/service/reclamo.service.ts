@@ -1,7 +1,7 @@
 import axios from "axios";
 
 
-export async function getReclamos( page: number = 1, limit: number = 10, ): Promise<any> {
+export async function getReclamos(page: number = 1, limit: number = 10,): Promise<any> {
     try {
         const params: any = { page, limit };
         const response = await axios.get(`${import.meta.env.VITE_BACK_RECLAMOS_DEV}/reclamo`, { params });
@@ -12,8 +12,8 @@ export async function getReclamos( page: number = 1, limit: number = 10, ): Prom
     }
 }
 
-export async function CreateReclamo(titulo: string, descripcion: string, imagenReclamo: string, proyectoId: string, tipoReclamoId: string, idUsuario: string, nameUsuario: string){
-    try{
+export async function CreateReclamo(titulo: string, descripcion: string, imagenReclamo: string, proyectoId: string, tipoReclamoId: string, idUsuario: string, nameUsuario: string) {
+    try {
         const payload = {
             titulo,
             descripcion,
@@ -23,16 +23,12 @@ export async function CreateReclamo(titulo: string, descripcion: string, imagenR
             idUsuario,
             nameUsuario
         };
-        
-        console.log('Enviando reclamo:', payload);
-        console.log('URL:', `${import.meta.env.VITE_BACK_RECLAMOS_DEV}/reclamo/crear`);
-        
-        const createReclamo =  await axios.post(`${import.meta.env.VITE_BACK_RECLAMOS_DEV}/reclamo/crear`, payload);
-        
-        console.log("reclamo creado", createReclamo.data);
+
+        const createReclamo = await axios.post(`${import.meta.env.VITE_BACK_RECLAMOS_DEV}/reclamo/crear`, payload);
+
         return createReclamo.data;
 
-    }catch(err){
+    } catch (err) {
         console.error('Error completo:', err);
         if (axios.isAxiosError(err)) {
             console.error('Response data:', err.response?.data);
@@ -42,7 +38,7 @@ export async function CreateReclamo(titulo: string, descripcion: string, imagenR
     }
 }
 
-export async function getReclamosByUser(idUsuario: string){
+export async function getReclamosByUser(idUsuario: string) {
     try {
         const response = await axios.get(`${import.meta.env.VITE_BACK_RECLAMOS_DEV}/reclamo/usuario/${idUsuario}`);
         return response.data;
@@ -52,3 +48,7 @@ export async function getReclamosByUser(idUsuario: string){
     }
 }
 
+
+export async function updateStatusCharts(id: string, nuevoEstadoID: string, agenteId: string) {
+
+}
