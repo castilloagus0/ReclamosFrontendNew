@@ -29,16 +29,13 @@ import {
   ReclamoI,
   FiltroEstado,
   FiltroPrioridad,
+  FiltroCriticidad,
 } from '../interfaces/reclamo.interface';
 import { Usuario } from '../interfaces/usuarios.interface';
 
 
 //context
 import { statusPillClasses, priorityTextClasses } from '../context/functions';
-
-
-
-
 
 ChartJS.register(
   ArcElement,
@@ -209,6 +206,7 @@ export default function AdminDashboard() {
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [cantReclamos, setAmount] = useState(0)
   const [claimsIniciados, setClaimsStatus] = useState(0)
+  const [claimsAssigned, setClaimsAssigned] = useState(0)
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [claims, setClaims] = useState<ReclamoI[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -221,6 +219,7 @@ export default function AdminDashboard() {
     'Todas las áreas',
   );
   const [priorityFilter, setPriorityFilter] = useState<FiltroPrioridad>('Todas');
+  const [criticidadFilter, setCriticidadFilter] = useState<FiltroCriticidad>('Todas');
   const [usuariosPage, setUsuariosPage] = useState(1);
   const [usuariosPerPage] = useState(8);
 
@@ -235,9 +234,11 @@ export default function AdminDashboard() {
     return claims.filter((r) => {
       const estadoNombre = r.estado?.nombre ?? '';
       const prioridad = r.prioridad ?? '';
+      const criticidad = r.criticidad ?? '';
 
       if (statusFilter !== 'Todos' && estadoNombre.toLowerCase() !== statusFilter.toLowerCase()) return false;
       if (priorityFilter !== 'Todas' && prioridad.toLowerCase() !== priorityFilter.toLowerCase()) return false;
+      if (criticidadFilter !== 'Todas' && criticidad.toLowerCase() !== criticidadFilter.toLowerCase()) return false;
 
       if (!search.trim()) return true;
       const q = search.toLowerCase();
@@ -247,15 +248,14 @@ export default function AdminDashboard() {
         String(r.idUsuario ?? '').toLowerCase().includes(q)
       );
     });
-  }, [claims, search, statusFilter, priorityFilter]);
+  }, [claims, search, statusFilter, priorityFilter, criticidadFilter]);
 
   const analytics = useMemo(() => {
-    const source = filteredClaims;
-    const total = source.length || 1;
+    const source = claims;
 
     const byStatus: Record<string, number> = {
       Iniciada: 0,
-      'En proceso': 0,
+      'En Proceso': 0,
       Resuelta: 0,
     };
 
@@ -266,12 +266,17 @@ export default function AdminDashboard() {
     };
 
     source.forEach((r) => {
-      const estadoNombre = r.estado?.nombre ?? 'Resuelta';
-      const prioridad = r.prioridad ?? 'Media';
-      byStatus[estadoNombre] = (byStatus[estadoNombre] ?? 0) + 1;
-      byPriority[prioridad] = (byPriority[prioridad] ?? 0) + 1;
+      const estadoNombre = r.estado?.nombre;
+      const prioridad = r.prioridad;
+      if (estadoNombre && byStatus[estadoNombre] !== undefined) {
+        byStatus[estadoNombre]++;
+      }
+      if (prioridad && byPriority[prioridad] !== undefined) {
+        byPriority[prioridad]++;
+      }
     });
 
+    const total = source.length || 1;
     const statusSeries = Object.keys(byStatus).map((k) => ({
       label: k,
       value: byStatus[k],
@@ -285,7 +290,7 @@ export default function AdminDashboard() {
     }));
 
     return { statusSeries, prioritySeries };
-  }, [filteredClaims]);
+  }, [claims]);
 
   const statusChartData = useMemo<StatusChartData>(
     () => ({
@@ -313,19 +318,17 @@ export default function AdminDashboard() {
           : Array.isArray(data)
             ? data
             : [];
+        // console.log(reclamos)
 
-        const totalFromResponse =
-          typeof data?.total === 'number'
-            ? data.total
-            : typeof data?.totalDocs === 'number'
-              ? data.totalDocs
-              : reclamos.length;
-
-        setAmount(totalFromResponse);
+        setAmount(reclamos.length);
 
         // Reclamos en estado 'Iniciada' (según JSON del backend)
         setClaimsStatus(
           reclamos.filter((r) => r.estado?.nombre === 'Iniciada').length,
+        );
+
+        setClaimsAssigned(
+          reclamos.filter((r) => r.estado?.nombre === 'Resuelta').length,
         );
 
         setClaims(reclamos);
@@ -347,7 +350,7 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div>
+    <>
       <div className="min-h-screen flex overflow-hidden bg-[#f3f4f6] text-[#111827]">
         <MenuDashboard
           variant="admin"
@@ -530,18 +533,6 @@ export default function AdminDashboard() {
                     </span>
                   </div>
                   <p className="text-2xl font-extrabold text-[#111827]">{cantReclamos}</p>
-                  <p className="mt-1 text-xs text-[#9ca3af]">Últimos 30 días</p>
-                </article>
-
-                <article className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-4 flex flex-col justify-between">
-                  <p className="text-xs font-bold tracking-wider uppercase text-[#6b7280] mb-2">
-                    Tiempo medio de resolución
-                  </p>
-                  <p className="text-2xl font-extrabold text-[#111827]">4.2 Days</p>
-                  <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 px-2 py-0.5 text-[11px] font-semibold w-fit">
-                    <span className="material-symbols-outlined text-[16px]">trending_down</span>
-                    -5%
-                  </p>
                 </article>
 
                 <article className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-4 flex flex-col justify-between">
@@ -554,11 +545,11 @@ export default function AdminDashboard() {
 
                 <article className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-4 flex flex-col justify-between">
                   <p className="text-xs font-bold tracking-wider uppercase text-[#6b7280] mb-2">
-                    Incumplimientos de SLA
+                    Reclamos Finalizados
                   </p>
-                  <p className="text-2xl font-extrabold text-[#111827]">3</p>
-                  <p className="mt-1 text-xs text-[#9ca3af]">Últimos 7 días</p>
+                  <p className="text-2xl font-extrabold text-[#111827]">{claimsAssigned}</p>
                 </article>
+
               </section>
             )}
 
@@ -623,6 +614,19 @@ export default function AdminDashboard() {
                         <option value="Baja">Baja</option>
                       </select>
                     </div>
+                    <div className="flex items-center gap-2 text-xs text-[#6b7280]">  
+                      <span>Criticidad:</span>
+                      <select
+                        value={criticidadFilter}
+                        onChange={(e) => setCriticidadFilter(e.target.value as FiltroCriticidad)}
+                        className="rounded-lg border border-[#e5e7eb] bg-white px-2 py-1 text-xs text-[#111827]"
+                      >
+                        <option value="Todas">Todas</option>
+                        <option value="Alta">Alta</option>
+                        <option value="Media">Media</option>
+                        <option value="Baja">Baja</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -634,6 +638,7 @@ export default function AdminDashboard() {
                         <th className="px-4 py-2">Usuario</th>
                         <th className="px-4 py-2">Estado</th>
                         <th className="px-4 py-2">Prioridad</th>
+                        <th className="px-4 py-2">Criticidad</th>
                         <th className="px-4 py-2">Fecha</th>
                         <th className="px-4 py-2 text-right">Acciones</th>
                       </tr>
@@ -651,7 +656,7 @@ export default function AdminDashboard() {
                               </div>
                               <div>
                                 <p className="text-sm font-semibold text-[#111827]">{r.nameUsuario}</p>
-                                <p className="text-xs text-[#6b7280]">{r.idUsuario}</p>
+                                <p className="text-xs text-[#6b7280]">{r.emailUsuario}</p>
                               </div>
                             </div>
                           </td>
@@ -674,6 +679,15 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td className="px-4 py-2">
+                          <span
+                              className={`text-xs font-semibold uppercase tracking-wide ${priorityTextClasses(
+                                r.criticidad ?? '',
+                              )}`}
+                            >
+                              {r.criticidad ?? '—'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2">
                             <span className="text-xs text-[#6b7280]">
                               {new Date(r.fechaHoraInicio).toLocaleDateString('es-AR', {
                                 day: '2-digit',
@@ -688,6 +702,7 @@ export default function AdminDashboard() {
                                 type="button"
                                 className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f3f4f6]"
                                 aria-label="Ver detalle"
+                                title="Ver detalle"
                                 onClick={() => setSelectedClaim(r)}
                               >
                                 <span className="material-symbols-outlined text-[18px]">
@@ -698,6 +713,7 @@ export default function AdminDashboard() {
                                 type="button"
                                 className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f3f4f6]"
                                 aria-label="Ver trazabilidad"
+                                title="Ver trazabilidad"
                               >
                                 <span className="material-symbols-outlined text-[18px]">
                                   timeline
@@ -707,6 +723,7 @@ export default function AdminDashboard() {
                                 type="button"
                                 className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f3f4f6]"
                                 aria-label="Asignar"
+                                title="Asignar"
                               >
                                 <span className="material-symbols-outlined text-[18px]">
                                   group_add
@@ -847,6 +864,6 @@ export default function AdminDashboard() {
           );
         }}
       />
-    </div>
+    </>
   );
 }

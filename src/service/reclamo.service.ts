@@ -12,7 +12,7 @@ export async function getReclamos(page: number = 1, limit: number = 10,): Promis
     }
 }
 
-export async function CreateReclamo(titulo: string, descripcion: string, imagenReclamo: string, proyectoId: string, tipoReclamoId: string, idUsuario: string, nameUsuario: string) {
+export async function CreateReclamo(titulo: string, descripcion: string, imagenReclamo: string, proyectoId: string, tipoReclamoId: string, idUsuario: string, nameUsuario: string, emailUsuario: string) {
     try {
         const payload = {
             titulo,
@@ -21,7 +21,8 @@ export async function CreateReclamo(titulo: string, descripcion: string, imagenR
             proyectoId,
             tipoReclamoId,
             idUsuario,
-            nameUsuario
+            nameUsuario,
+            emailUsuario
         };
 
         const createReclamo = await axios.post(`${import.meta.env.VITE_BACK_RECLAMOS_DEV}/reclamo/crear`, payload);
@@ -50,5 +51,16 @@ export async function getReclamosByUser(idUsuario: string) {
 
 
 export async function updateStatusCharts(id: string, nuevoEstadoID: string, agenteId: string) {
+    try{
+        const response = await axios.put(`${import.meta.env.VITE_BACK_RECLAMOS_DEV}/reclamo/cambiar-estado/${id}`, {
+            estadoId: nuevoEstadoID,
+            agenteId: agenteId
+        })
 
+        return response
+
+    }catch(error){
+        console.error('Error al cambiar de estado', error);
+        throw error;
+    }
 }

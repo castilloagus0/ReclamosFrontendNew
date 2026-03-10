@@ -72,3 +72,15 @@ export const LogoShield = ({ className = 'w-8 h-8' }: { className?: string }) =>
     </span>
   </div>
 );
+
+export const statusPillStyles: Record<string, string> = {
+  Iniciada: 'bg-amber-50 text-amber-700 border-amber-200',
+  'En proceso': 'bg-blue-50 text-blue-700 border-blue-200',
+  Resuelta: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+};
+
+export const priorityStyles: Record<string, string> = {
+  Alta: 'text-rose-600',
+  Media: 'text-amber-600',
+  Baja: 'text-emerald-600',
+};

@@ -1,45 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { ReclamoI, ClaimStatus } from '../interfaces/reclamo.interface';
-
-
-
-// Estados disponibles para el reclamo — alineados con los del backend
-const ESTADOS_RECLAMO: { value: string; label: string }[] = [
-    { value: 'iniciada', label: 'Iniciada' },
-    { value: 'en_proceso', label: 'En proceso' },
-    { value: 'resuelta', label: 'Resuelta' },
-];
-
-const statusPillStyles: Record<string, string> = {
-    Iniciada: 'bg-amber-50 text-amber-700 border-amber-200',
-    'En proceso': 'bg-blue-50 text-blue-700 border-blue-200',
-    Resuelta: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-};
-
-const priorityStyles: Record<string, string> = {
-    Alta: 'text-rose-600',
-    Media: 'text-amber-600',
-    Baja: 'text-emerald-600',
-};
+import { ReclamoI, EstadoNombre } from '../interfaces/reclamo.interface';
+import { EstadosReclamos } from '../interfaces/estados.interface';
+import { statusPillStyles, priorityStyles } from '../components/Icons';
+import { getEstados } from '../service/estados.service';
+import { updateStatusCharts } from '../service/reclamo.service';
 
 interface PreviewChartsProps {
     claim: ReclamoI | null;
     onClose: () => void;
-    onStatusChange?: (claimId: string, newStatus: ClaimStatus, resolucion?: string) => void;
+    onStatusChange?: (claimId: string, newStatus: EstadoNombre, resolucion?: string) => void;
 }
 
 export default function PreviewCharts({ claim, onClose, onStatusChange }: PreviewChartsProps) {
     const [selectedEstado, setSelectedEstado] = useState<string>('');
     const [resolucion, setResolucion] = useState<string>('');
     const [submitted, setSubmitted] = useState<boolean>(false);
+    const [estados, setEstados] = useState<EstadosReclamos[]>([]);
+    const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+    
+    useEffect(() => {
+        const fetchEstados = async () => {
+            try {
+                const response = await getEstados();
+                setEstados(response);
+            } catch (error) {
+                console.error('Error al obtener estados:', error);
+            }
+        };
 
-    // Resetear estado interno cada vez que se abre un reclamo diferente
+        fetchEstados();
+    }, []);
+
     useEffect(() => {
         if (claim) {
-            const estadoActual = ESTADOS_RECLAMO.find(
-                (e) => e.label.toLowerCase() === (claim.estado?.nombre ?? '').toLowerCase(),
-            );
-            setSelectedEstado(estadoActual ? estadoActual.value : '');
+            setSelectedEstado(claim.estado?.nombre ?? '');
             setResolucion('');
             setSubmitted(false);
         }
@@ -47,19 +41,16 @@ export default function PreviewCharts({ claim, onClose, onStatusChange }: Previe
 
     if (!claim) return null;
 
-    const esFinalizado = selectedEstado === 'finalizado';
+
+    const estaResuelto = claim.estado?.nombre === 'Resuelta';
 
     const handleConfirm = () => {
-        if (!selectedEstado) return;
-        setSubmitted(true);
-        if (esFinalizado && !resolucion.trim()) return;
-
-        const estadoLabel =
-            (ESTADOS_RECLAMO.find((e) => e.value === selectedEstado)?.label as ClaimStatus) ??
-            (selectedEstado as ClaimStatus);
-
-        onStatusChange?.(claim._id, estadoLabel, esFinalizado ? resolucion.trim() : undefined);
-        onClose();
+        // try{
+        //     const updateClaims = await updateStatusCharts(claim._id, estados.id, '6940946523c6265241ce5f4c')
+        //     console.log("updateClaims", updateClaims)
+        // }catch(err){
+        //     console.error("Error en handleConfirm:", err);
+        // }
     };
 
     const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -77,7 +68,7 @@ export default function PreviewCharts({ claim, onClose, onStatusChange }: Previe
                 aria-label="Detalle del reclamo"
             >
                 {/* Modal */}
-                <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-[#e5e7eb] overflow-hidden animate-slide-up">
+                <div className="relative w-full max-w-[50rem] max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-[#e5e7eb] overflow-hidden animate-slide-up flex flex-col">
 
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb] bg-[#f9fafb]">
@@ -96,7 +87,7 @@ export default function PreviewCharts({ claim, onClose, onStatusChange }: Previe
                     </div>
 
                     {/* Body */}
-                    <div className="px-6 py-5 space-y-5">
+                    <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
                         {/* Info del reclamo */}
                         <div className="grid grid-cols-2 gap-3">
                             {/* Usuario */}
@@ -113,13 +104,7 @@ export default function PreviewCharts({ claim, onClose, onStatusChange }: Previe
                                     <p className="text-sm font-semibold text-[#111827]">{claim.nameUsuario}</p>
                                 </div>
                             </div>
-
-                            {/* ID */}
-                            {/* <div className="bg-[#f9fafb] rounded-xl p-3 border border-[#e5e7eb]">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-[#9ca3af] mb-1">ID</p>
-                                <p className="text-xs font-mono text-[#4b5563] break-all">{claim.id}</p>
-                            </div> */}
-
+                            
                             {/* Fecha */}
                             <div className="bg-[#f9fafb] rounded-xl p-3 border border-[#e5e7eb]">
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-[#9ca3af] mb-1">Fecha</p>
@@ -152,72 +137,80 @@ export default function PreviewCharts({ claim, onClose, onStatusChange }: Previe
                                 </span>
                             </div>
 
-                            {/* { Descripcion del reclamo} */}
-                            {/* <div className="bg-[#f9fafb] rounded-xl p-3 border border-[#e5e7eb]">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-[#9ca3af] mb-1">Descripcion</p>
+                            {/* Criticidad */}
+                            <div className="bg-[#f9fafb] rounded-xl p-3 border border-[#e5e7eb]">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-[#9ca3af] mb-1">Criticidad</p>
                                 <span
-                                    className={`text-xs font-semibold uppercase tracking-wide ${priorityStyles[claim.descripcion] ?? 'text-[#4b5563]'
+                                    className={`text-xs font-semibold uppercase tracking-wide ${priorityStyles[claim.criticidad ?? ''] ?? 'text-[#4b5563]'
                                         }`}
                                 >
-                                    {claim.priority}
+                                    {claim.criticidad ?? '—'}
                                 </span>
-                            </div> */}
+                            </div>
+                        </div>
+
+                        <div className="border-t border-[#e5e7eb]" />
+
+                        {/* Descripción */}
+                        <div className="space-y-2">
+                            <p className="text-xs font-bold uppercase tracking-wider text-[#6b7280]">Descripción</p>
+                            <p className="text-sm text-[#373f4a] leading-relaxed p-1">
+                                {claim.descripcion ?? '—'}
+                            </p>
                         </div>
 
                         <div className="border-t border-[#e5e7eb]" />
 
                         {/* Cambiar estado */}
-                        <div className="space-y-3">
-                            <p className="text-xs font-bold uppercase tracking-wider text-[#6b7280]">
-                                Cambiar estado del reclamo
-                            </p>
 
-                            <select
-                                value={selectedEstado}
-                                onChange={(e) => {
-                                    setSelectedEstado(e.target.value);
-                                    setResolucion('');
-                                    setSubmitted(false);
-                                }}
-                                className="w-full rounded-xl border border-[#e5e7eb] bg-[#f9fafb] px-3 py-2.5 text-sm text-[#111827] outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
-                            >
-                                <option value="" disabled>— Seleccioná un estado —</option>
-                                {ESTADOS_RECLAMO.map((est) => (
-                                    <option key={est.value} value={est.value}>
-                                        {est.label}
-                                    </option>
-                                ))}
-                            </select>
+                    <div className={`space-y-3 ${estaResuelto ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                        <p className="text-xs font-bold uppercase tracking-wider text-[#6b7280]">
+                            {estaResuelto ? 'Reclamo Finalizado (No editable)' : 'Cambiar estado del reclamo'}
+                        </p>
 
-                            {/* Descripción de resolución — solo cuando sea "Finalizado" */}
-                            {esFinalizado && (
-                                <div className="space-y-1.5 animate-fade-in">
-                                    <label htmlFor="resolucion-input" className="text-xs font-semibold text-[#4b5563]">
-                                        Descripción de la resolución <span className="text-rose-500">*</span>
-                                    </label>
-                                    <textarea
-                                        id="resolucion-input"
-                                        rows={3}
-                                        value={resolucion}
-                                        onChange={(e) => setResolucion(e.target.value)}
-                                        placeholder="Describí cómo se resolvió el reclamo..."
-                                        className={`w-full rounded-xl border px-3 py-2 text-sm text-[#111827] resize-none outline-none transition-all ${submitted && !resolucion.trim()
+                        <select
+                            value={selectedEstado}
+                            disabled={estaResuelto}
+                            onChange={(e) => {
+                                console.log("Estado seleccionado:", e.target.value);
+                                setSelectedEstado(e.target.value);
+                                setResolucion('');
+                                setSubmitted(false);
+                            }}
+                            className={`w-full rounded-xl border border-[#e5e7eb] bg-[#f9fafb] px-3 py-2.5 text-sm text-[#111827] outline-none transition-all 
+                                ${estaResuelto ? 'bg-gray-100' : 'focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100'}`}
+                        >
+                            <option value="" disabled>— Seleccioná un estado —</option>
+                            {estados.map((est) => (
+                                <option key={est.id} value={est.nombre}>
+                                    {est.nombre}
+                                </option>
+                            ))}
+                        </select>
+
+                        {selectedEstado === 'Resuelta' && !estaResuelto && (
+                            <div className="space-y-1.5 animate-fade-in">
+                                <label htmlFor="resolucion-input" className="text-xs font-semibold text-[#4b5563]">
+                                    Descripción de la resolución <span className="text-rose-500">*</span>
+                                </label>
+                                <textarea
+                                    id="resolucion-input"
+                                    rows={3}
+                                    value={resolucion}
+                                    onChange={(e) => setResolucion(e.target.value)}
+                                    placeholder="Describí cómo se resolvió el reclamo..."
+                                    className={`w-full rounded-xl border px-3 py-2 text-sm text-[#111827] resize-none outline-none transition-all ${
+                                        submitted && !resolucion.trim()
                                             ? 'border-rose-400 ring-2 ring-rose-100 bg-rose-50'
                                             : 'border-[#e5e7eb] bg-[#f9fafb] focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100'
-                                            }`}
-                                    />
-                                    {submitted && !resolucion.trim() && (
-                                        <p className="text-xs text-rose-500">
-                                            Este campo es requerido para finalizar el reclamo.
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+                                    }`}
+                                />
+                            </div>
+                        )}
+                    </div>
                     </div>
 
-                    {/* Footer */}
-                    <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#e5e7eb] bg-[#f9fafb]">
+                    <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#e5e7eb] bg-[#f9fafb] flex-shrink-0">
                         <button
                             type="button"
                             onClick={onClose}
@@ -229,7 +222,7 @@ export default function PreviewCharts({ claim, onClose, onStatusChange }: Previe
                             type="button"
                             onClick={handleConfirm}
                             disabled={!selectedEstado}
-                            className="px-5 py-2 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                            className="px-5 py-2 rounded-xl text-sm font-semibold bg-indigo-600 text-[#447f23] hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                         >
                             Confirmar cambio
                         </button>

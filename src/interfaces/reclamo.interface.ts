@@ -2,7 +2,7 @@
 // ─── Tipos derivados del backend ──────────────────────────────────────────────
 
 /** Valores posibles del campo estado.nombre que llegan desde el backend */
-export type EstadoNombre = 'Iniciada' | 'En proceso' | 'Resuelta';
+export type EstadoNombre = 'Iniciada' | 'En Proceso' | 'Resuelta';
 
 /** Valores posibles del campo prioridad */
 export type PrioridadNombre = 'Alta' | 'Media' | 'Baja';
@@ -41,6 +41,7 @@ export interface ReclamoI {
   estado: EstadoI;
   idUsuario: string;
   nameUsuario: string;
+  emailUsuario: string;
   cambioEstado: CambioEstadoI[];
   historialAreas: any[];
   tipoReclamoId: string;
@@ -50,3 +51,4 @@ export interface ReclamoI {
 
 export type FiltroEstado = 'Todos' | EstadoNombre;
 export type FiltroPrioridad = 'Todas' | PrioridadNombre;
+export type FiltroCriticidad = 'Todas' | PrioridadNombre;

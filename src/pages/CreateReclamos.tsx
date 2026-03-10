@@ -54,15 +54,17 @@ export default function CreateReclamos() {
     try {
       const idUsuario = localStorage.getItem('id') || '';
       const nameUsuario = localStorage.getItem('fullName') || '';
+      const emailUsuario = localStorage.getItem('email') || '';
       
       const result = await CreateReclamo(
         formData.titulo,
         formData.descripcion,
-        '', // imagenReclamo - por ahora vacío
+        '', 
         formData.proyectoId,
         formData.tipoReclamoId,
         idUsuario,
-        nameUsuario
+        nameUsuario,
+        emailUsuario
       );
 
       if(result){
