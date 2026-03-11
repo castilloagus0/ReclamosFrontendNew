@@ -7,7 +7,8 @@ import { toast } from 'sonner';
 
 import { getReclamosByUser, getReclamosById } from '../service/reclamo.service';
 import { ReclamoI } from '../interfaces/reclamo.interface';
-import { normalizarPrioridadCriticidad, statusPillClasses } from '../context/functions';
+import { normalizarPrioridadCriticidad } from '../context/functions';
+import TrazabilityTimeline, { getStepsFromReclamo } from '../components/TrazabilityTimeline';
 
 /** Calcula el porcentaje de progreso según estado */
 function getProgressFromEstado(estadoNombre: string | undefined, pasosTotales: number): number {
@@ -58,72 +59,6 @@ const CircularProgressChart = ({ percent = 75, label = 'SOLVED', sublabel = '' }
     </div>
   );
 };
-
-/** Trazabilidad horizontal con datos reales (como TrazabilityCharts) */
-function TraceabilityHorizontal({ reclamo }: { reclamo: ReclamoI | null }) {
-  const steps = useMemo(() => {
-    if (!reclamo) return [];
-
-    const result: { label: string; fecha: string; isLast?: boolean }[] = [];
-    result.push({ label: 'Iniciada', fecha: reclamo.fechaHoraInicio });
-
-    const cambios = reclamo.cambioEstado ?? [];
-    const ordenados = [...cambios].sort(
-      (a, b) => new Date(a.fechaHoraCambio).getTime() - new Date(b.fechaHoraCambio).getTime()
-    );
-    ordenados.forEach((c) => {
-      result.push({
-        label: c.estado?.nombre ?? 'Cambio de estado',
-        fecha: c.fechaHoraCambio,
-      });
-    });
-    if (result.length > 0) result[result.length - 1].isLast = true;
-    return result;
-  }, [reclamo]);
-
-  if (!reclamo || steps.length === 0) return null;
-
-  return (
-    <div className="w-full">
-      <h3 className="text-sm font-bold text-[#111827] mb-4">Trazabilidad del reclamo</h3>
-      <div className="relative flex items-start overflow-x-auto pb-4 px-2">
-        <div className="flex items-start gap-2 min-w-min">
-          {steps.map((step, index) => (
-            <React.Fragment key={`${step.fecha}-${step.label}-${index}`}>
-              <div className="flex flex-col items-center flex-shrink-0 min-w-[100px]">
-                <div
-                  className={`w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0 ${
-                    step.label === 'Iniciada' ? 'bg-amber-400' : step.label === 'Resuelta' ? 'bg-emerald-500' : 'bg-blue-400'
-                  }`}
-                />
-                <div className={`mt-2 inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusPillClasses(step.label)}`}>
-                  {step.label}
-                </div>
-                <p className="mt-1.5 text-[10px] text-[#6b7280] text-center leading-tight max-w-[90px]">
-                  {new Date(step.fecha).toLocaleDateString('es-AR', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </p>
-              </div>
-              {!step.isLast && (
-                <div className="flex items-center flex-shrink-0 pt-2 w-12 justify-center">
-                  <span className="material-symbols-outlined text-[20px] text-[#d1d5db]">east</span>
-                </div>
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-      {steps.length === 1 && (
-        <p className="text-sm text-[#6b7280] py-2">Solo hay estado inicial. No hay cambios de estado aún.</p>
-      )}
-    </div>
-  );
-}
 
 export default function UserDashboard() {
   const [tab, setTab] = useState<'todos' | 'activos' | 'resueltos'>('todos');
@@ -185,6 +120,7 @@ export default function UserDashboard() {
 
   const filteredClaims = useMemo(() => {
     const q = query.trim().toLowerCase();
+    console.log("reclamos", reclamos)
     const byTab = reclamos.filter((c) => {
       const estadoNombre = (c.estado?.nombre || '').toLowerCase();
       const isResuelto = estadoNombre.includes('resuelto') || estadoNombre.includes('resuelta') || estadoNombre.includes('finalizado');
@@ -356,42 +292,10 @@ export default function UserDashboard() {
                 </div>
 
                 {/* Summary cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-5">
-                    <p className="text-xs font-bold tracking-wider uppercase text-[#6b7280] mb-2">
-                      Prioridad interna
-                    </p>
-                    <p className="text-lg font-extrabold text-[#111827] flex items-center gap-2">
-                      <span className="material-symbols-outlined text-amber-500 text-xl">priority_high</span>
-                      {normalizarPrioridadCriticidad(selectedClaim.prioridad) || 'Alta'}
-                    </p>
-                    <p className="text-xs text-[#6b7280] mt-1">Escalar si hay demora</p>
-                  </div>
-
-                  <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-5">
-                    <p className="text-xs font-bold tracking-wider uppercase text-[#6b7280] mb-2">
-                      Agente asignado
-                    </p>
-                    <p className="text-lg font-extrabold text-[#111827]">
-                      {selectedClaim.nameUsuario || 'Usuario'}
-                    </p>
-                    <p className="text-xs text-[#6b7280] mt-1">Soporte al cliente</p>
-                  </div>
-
-                  <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-5">
-                    <p className="text-xs font-bold tracking-wider uppercase text-[#6b7280] mb-2">
-                      Categoría del caso
-                    </p>
-                    <p className="text-lg font-extrabold text-[#111827]">
-                      {selectedClaim.tipoReclamoId || '—'}
-                    </p>
-                    <p className="text-xs text-[#6b7280] mt-1">Tipo de reclamo</p>
-                  </div>
-                </div>
-
-                {/* Trazabilidad horizontal */}
+                
+                {/* Trazabilidad - usa TrazabilityTimeline (mismo diseño que TrazabilityCharts) */}
                 <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-6">
-                  <TraceabilityHorizontal reclamo={selectedClaim} />
+                  <TrazabilityTimeline steps={getStepsFromReclamo(selectedClaim)} showTitle={true} />
                 </div>
 
                 {/* Activity */}

@@ -1,18 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ReclamoI } from '../interfaces/reclamo.interface';
-import { statusPillClasses } from '../context/functions';
 import { getReclamosById } from '../service/reclamo.service';
+import TrazabilityTimeline, { getStepsFromReclamo } from './TrazabilityTimeline';
 
 interface TrazabilityChartsProps {
   reclamoId: string | null;
   onClose: () => void;
 }
-
-type TrazabilityStep = {
-  label: string;
-  fecha: string;
-  isLast?: boolean;
-};
 
 export default function TrazabilityCharts({ reclamoId, onClose }: TrazabilityChartsProps) {
   const [reclamo, setReclamo] = useState<ReclamoI | null>(null);
@@ -42,37 +36,7 @@ export default function TrazabilityCharts({ reclamoId, onClose }: TrazabilityCha
     if (e.target === e.currentTarget) onClose();
   };
 
-  const steps: TrazabilityStep[] = React.useMemo(() => {
-    if (!reclamo) return [];
-
-    const result: TrazabilityStep[] = [];
-
-    // Paso inicial: creación del reclamo (Iniciada)
-    result.push({
-      label: 'Iniciada',
-      fecha: reclamo.fechaHoraInicio,
-    });
-
-    // Pasos intermedios: cambios de estado
-    const cambios = reclamo.cambioEstado ?? [];
-    const ordenados = [...cambios].sort(
-      (a, b) => new Date(a.fechaHoraCambio).getTime() - new Date(b.fechaHoraCambio).getTime()
-    );
-    ordenados.forEach((c) => {
-      const nombre = c.estado?.nombre ?? 'Cambio de estado';
-      result.push({
-        label: nombre,
-        fecha: c.fechaHoraCambio,
-      });
-    });
-
-    // Marcar el último paso
-    if (result.length > 0) {
-      result[result.length - 1].isLast = true;
-    }
-
-    return result;
-  }, [reclamo]);
+  const steps = React.useMemo(() => getStepsFromReclamo(reclamo), [reclamo]);
 
   if (!reclamoId) return null;
 
@@ -141,60 +105,8 @@ export default function TrazabilityCharts({ reclamoId, onClose }: TrazabilityCha
                   </div>
                 </div>
 
-                {/* Trazabilidad horizontal */}
-                <div className="pt-2">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#6b7280] mb-4">
-                    Historial de estados
-                  </p>
-                  <div className="relative flex items-start overflow-x-auto pb-4 px-2">
-                    <div className="flex items-start gap-2 min-w-min">
-                      {steps.map((step, index) => (
-                        <React.Fragment key={`${step.fecha}-${step.label}-${index}`}>
-                          <div className="flex flex-col items-center flex-shrink-0 min-w-[100px]">
-                            <div className="relative flex items-center justify-center">
-                              <div
-                                className={`w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0 ${
-                                  step.label === 'Iniciada'
-                                    ? 'bg-amber-400'
-                                    : step.label === 'Resuelta'
-                                    ? 'bg-emerald-500'
-                                    : 'bg-blue-400'
-                                }`}
-                              />
-                            </div>
-                            <div
-                              className={`mt-2 inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusPillClasses(step.label)}`}
-                            >
-                              {step.label}
-                            </div>
-                            <p className="mt-1.5 text-[10px] text-[#6b7280] text-center leading-tight max-w-[90px]">
-                              {new Date(step.fecha).toLocaleDateString('es-AR', {
-                                day: '2-digit',
-                                month: 'short',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </p>
-                          </div>
-                          {!step.isLast && (
-                            <div className="flex items-center flex-shrink-0 pt-2 w-12 justify-center">
-                              <span className="material-symbols-outlined text-[20px] text-[#d1d5db]">
-                                east
-                              </span>
-                            </div>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {steps.length === 0 && (
-                  <p className="text-sm text-[#6b7280] py-4">
-                    No hay historial de estados disponible.
-                  </p>
-                )}
+                {/* Trazabilidad horizontal - usa TrazabilityTimeline compartido */}
+                <TrazabilityTimeline steps={steps} showTitle={true} />
               </div>
             )}
           </div>
