@@ -5,11 +5,23 @@ import MenuDashboard from '../components/menuDashboard';
 
 import { toast } from 'sonner';
 
-import { getReclamosByUser } from '../service/reclamo.service';
+import { getReclamosByUser, getReclamosById } from '../service/reclamo.service';
 import { ReclamoI } from '../interfaces/reclamo.interface';
+import { normalizarPrioridadCriticidad, statusPillClasses } from '../context/functions';
+
+/** Calcula el porcentaje de progreso según estado */
+function getProgressFromEstado(estadoNombre: string | undefined, pasosTotales: number): number {
+  const n = (estadoNombre || '').toLowerCase();
+  if (n.includes('resuelto') || n.includes('resuelta') || n.includes('finalizado')) return 100;
+  if (n.includes('en proceso') || n.includes('en progreso')) return 60;
+  if (n.includes('iniciad')) return 25;
+  // Progreso por pasos completados si hay trazabilidad
+  if (pasosTotales > 0) return Math.min(95, Math.round((pasosTotales / 4) * 100));
+  return 50;
+}
 
 /** Gráfico circular de progreso tipo donut */
-const CircularProgressChart = ({ percent = 75, label = 'SOLVED', sublabel = 'Est. 2 días restantes' }: { percent?: number; label?: string; sublabel?: string }) => {
+const CircularProgressChart = ({ percent = 75, label = 'SOLVED', sublabel = '' }: { percent?: number; label?: string; sublabel?: string }) => {
   const r = 45;
   const stroke = 8;
   const circumference = 2 * Math.PI * r;
@@ -47,102 +59,151 @@ const CircularProgressChart = ({ percent = 75, label = 'SOLVED', sublabel = 'Est
   );
 };
 
-/** Trazabilidad horizontal hardcodeada */
-const TraceabilityJourney = () => {
-  const steps = [
-    { id: 1, label: 'Enviado', date: '12 Oct', icon: 'check', completed: true },
-    { id: 2, label: 'Soporte', date: '13 Oct', icon: 'support_agent', completed: true },
-    { id: 3, label: 'Revisión Legal', date: '15 Oct', icon: 'balance', completed: true },
-    { id: 4, label: 'Finanzas', date: 'En progreso', icon: 'account_balance', completed: true, inProgress: true },
-    { id: 5, label: 'Resuelto', date: 'Pendiente', icon: 'check_circle', completed: false },
-  ];
+/** Trazabilidad horizontal con datos reales (como TrazabilityCharts) */
+function TraceabilityHorizontal({ reclamo }: { reclamo: ReclamoI | null }) {
+  const steps = useMemo(() => {
+    if (!reclamo) return [];
+
+    const result: { label: string; fecha: string; isLast?: boolean }[] = [];
+    result.push({ label: 'Iniciada', fecha: reclamo.fechaHoraInicio });
+
+    const cambios = reclamo.cambioEstado ?? [];
+    const ordenados = [...cambios].sort(
+      (a, b) => new Date(a.fechaHoraCambio).getTime() - new Date(b.fechaHoraCambio).getTime()
+    );
+    ordenados.forEach((c) => {
+      result.push({
+        label: c.estado?.nombre ?? 'Cambio de estado',
+        fecha: c.fechaHoraCambio,
+      });
+    });
+    if (result.length > 0) result[result.length - 1].isLast = true;
+    return result;
+  }, [reclamo]);
+
+  if (!reclamo || steps.length === 0) return null;
 
   return (
     <div className="w-full">
       <h3 className="text-sm font-bold text-[#111827] mb-4">Trazabilidad del reclamo</h3>
-      <div className="flex items-start justify-between gap-2">
-        {steps.map((step, idx) => {
-          const isCompleted = step.completed;
-          const isLast = idx === steps.length - 1;
-          const nextStep = steps[idx + 1];
-          const lineToNextBlue = nextStep && (nextStep.completed || nextStep.inProgress);
-          return (
-            <div key={step.id} className="flex flex-col items-center flex-1 min-w-0">
-              <div className="flex items-center w-full">
-                {idx > 0 && (
-                  <div
-                    className={`flex-1 h-0.5 -mr-1 ${isCompleted ? 'bg-[var(--color-primary)]' : 'bg-[#e5e7eb]'}`}
-                    style={{ minWidth: '8px' }}
-                  />
-                )}
+      <div className="relative flex items-start overflow-x-auto pb-4 px-2">
+        <div className="flex items-start gap-2 min-w-min">
+          {steps.map((step, index) => (
+            <React.Fragment key={`${step.fecha}-${step.label}-${index}`}>
+              <div className="flex flex-col items-center flex-shrink-0 min-w-[100px]">
                 <div
-                  className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                    isCompleted ? 'bg-[var(--color-primary)] text-white' : 'bg-[#e5e7eb] text-[#9ca3af]'
+                  className={`w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0 ${
+                    step.label === 'Iniciada' ? 'bg-amber-400' : step.label === 'Resuelta' ? 'bg-emerald-500' : 'bg-blue-400'
                   }`}
-                >
-                  <span className="material-symbols-outlined text-lg">{step.icon}</span>
+                />
+                <div className={`mt-2 inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusPillClasses(step.label)}`}>
+                  {step.label}
                 </div>
-                {!isLast && (
-                  <div
-                    className={`flex-1 h-0.5 -ml-1 ${lineToNextBlue ? 'bg-[var(--color-primary)]' : 'bg-[#e5e7eb]'}`}
-                    style={{ minWidth: '8px' }}
-                  />
-                )}
+                <p className="mt-1.5 text-[10px] text-[#6b7280] text-center leading-tight max-w-[90px]">
+                  {new Date(step.fecha).toLocaleDateString('es-AR', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
               </div>
-              <div className="mt-2 text-center">
-                <p className="text-xs font-semibold text-[#111827] truncate">{step.label}</p>
-                <p className="text-[10px] text-[#6b7280]">{step.date}</p>
-              </div>
-            </div>
-          );
-        })}
+              {!step.isLast && (
+                <div className="flex items-center flex-shrink-0 pt-2 w-12 justify-center">
+                  <span className="material-symbols-outlined text-[20px] text-[#d1d5db]">east</span>
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
       </div>
+      {steps.length === 1 && (
+        <p className="text-sm text-[#6b7280] py-2">Solo hay estado inicial. No hay cambios de estado aún.</p>
+      )}
     </div>
   );
-};
+}
 
 export default function UserDashboard() {
   const [tab, setTab] = useState<'todos' | 'activos' | 'resueltos'>('todos');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reclamos, setReclamos] = useState<ReclamoI[]>([]);
+  const [selectedDetail, setSelectedDetail] = useState<ReclamoI | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     const idUsuario = localStorage.getItem('id') || '';
-    
+
     const getReclamosUser = async () => {
       try {
         const data: ReclamoI[] = await getReclamosByUser(idUsuario);
         if (isMounted) {
-          setReclamos(data);
-          if (data.length > 0) setSelectedId(data[0]._id);
-          if (data.length === 0) toast.error('Aun no hay reclamos registrados en su usuario');
+          setReclamos(Array.isArray(data) ? data : []);
+          const arr = Array.isArray(data) ? data : [];
+          if (arr.length > 0) setSelectedId(arr[0]._id);
+          if (arr.length === 0) {
+            toast.error('Aun no hay reclamos registrados en su usuario');
+            setSelectedDetail(null);
+          }
         }
       } catch (err) {
         if (isMounted) console.error(err);
       }
     };
-    
+
     getReclamosUser();
     return () => { isMounted = false; };
   }, []);
 
+  useEffect(() => {
+    if (!selectedId) {
+      setSelectedDetail(null);
+      return;
+    }
+    let isMounted = true;
+    const fetchDetail = async () => {
+      try {
+        const res = await getReclamosById(selectedId);
+        const data = res?.data ?? res ?? null;
+        if (isMounted && data) setSelectedDetail(data);
+        else if (isMounted) {
+          const fallback = reclamos.find((r) => r._id === selectedId) ?? null;
+          setSelectedDetail(fallback);
+        }
+      } catch {
+        if (isMounted) {
+          const fallback = reclamos.find((r) => r._id === selectedId) ?? null;
+          setSelectedDetail(fallback);
+        }
+      }
+    };
+    fetchDetail();
+    return () => { isMounted = false; };
+  }, [selectedId, reclamos]);
+
   const filteredClaims = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return reclamos.filter((c) => {
-      if (!q) return true;
-      return (
+    const byTab = reclamos.filter((c) => {
+      const estadoNombre = (c.estado?.nombre || '').toLowerCase();
+      const isResuelto = estadoNombre.includes('resuelto') || estadoNombre.includes('resuelta') || estadoNombre.includes('finalizado');
+      if (tab === 'activos') return !isResuelto;
+      if (tab === 'resueltos') return isResuelto;
+      return true;
+    });
+    if (!q) return byTab;
+    return byTab.filter(
+      (c) =>
         c._id.toLowerCase().includes(q) ||
         (c.descripcion || '').toLowerCase().includes(q) ||
         (c.estado?.nombre || '').toLowerCase().includes(q)
-      );
-    });
-  }, [reclamos, query]);
+    );
+  }, [reclamos, query, tab]);
 
   const selectedClaim = useMemo(
-    () => reclamos.find((c) => c._id === selectedId) ?? filteredClaims[0],
-    [reclamos, filteredClaims, selectedId],
+    () => selectedDetail ?? reclamos.find((c) => c._id === selectedId) ?? filteredClaims[0] ?? null,
+    [selectedDetail, reclamos, selectedId, filteredClaims],
   );
 
   return (
@@ -191,16 +252,16 @@ export default function UserDashboard() {
                 const isSelected = selectedClaim?._id === c._id;
                 const fecha = new Date(c.fechaHoraInicio).toLocaleDateString('es-AR');
                 const estadoNombre = (c.estado?.nombre || 'Sin estado').toLowerCase();
-                const isResuelto = estadoNombre.includes('resuelto') || estadoNombre.includes('finalizado');
-                const isAccion = estadoNombre.includes('acción') || estadoNombre.includes('pendiente') || estadoNombre.includes('verificación');
-                const barColor = isResuelto ? 'bg-green-500' : isAccion ? 'bg-amber-500' : 'bg-[var(--color-primary)]';
+                const isResuelto = estadoNombre.includes('resuelto') || estadoNombre.includes('resuelta') || estadoNombre.includes('finalizado');
+                const pasos = 1 + (c.cambioEstado?.length ?? 0);
+                const progress = getProgressFromEstado(c.estado?.nombre, pasos);
+                const barColor = isResuelto ? 'bg-green-500' : 'bg-[var(--color-primary)]';
                 const badgeClass = isResuelto
                   ? 'bg-green-100 text-green-700 border-green-200'
-                  : isAccion
-                    ? 'bg-amber-100 text-amber-700 border-amber-200'
-                    : 'bg-blue-100 text-blue-700 border-blue-200';
-                const progress = isResuelto ? 100 : isAccion ? 20 : 75;
-                const currentAt = isResuelto ? 'Resultado final: Aprobado' : 'Actualmente en: Finanzas';
+                  : 'bg-blue-100 text-blue-700 border-blue-200';
+                const currentAt = isResuelto
+                  ? (c.descripcionResuelto ? `Resuelto: ${c.descripcionResuelto.substring(0, 40)}${c.descripcionResuelto.length > 40 ? '…' : ''}` : 'Resuelto')
+                  : `Actualmente en: ${c.estado?.nombre || 'Sin estado'}`;
 
                 return (
                   <button
@@ -283,7 +344,13 @@ export default function UserDashboard() {
                       </p>
                     </div>
                     <div className="flex-shrink-0 flex justify-center lg:justify-end">
-                      <CircularProgressChart percent={75} label="Resuelto" sublabel="Est. 2 días restantes" />
+                      <CircularProgressChart
+                        percent={getProgressFromEstado(selectedClaim.estado?.nombre, 1 + (selectedClaim.cambioEstado?.length ?? 0))}
+                        label={selectedClaim.estado?.nombre ?? 'Progreso'}
+                        sublabel={selectedClaim.estado?.nombre?.toLowerCase().includes('resuelto') || selectedClaim.estado?.nombre?.toLowerCase().includes('resuelta')
+                          ? (selectedClaim.fechaHoraResuelto ? `Resuelto el ${new Date(selectedClaim.fechaHoraResuelto).toLocaleDateString('es-AR')}` : '')
+                          : 'En proceso'}
+                      />
                     </div>
                   </div>
                 </div>
@@ -296,7 +363,7 @@ export default function UserDashboard() {
                     </p>
                     <p className="text-lg font-extrabold text-[#111827] flex items-center gap-2">
                       <span className="material-symbols-outlined text-amber-500 text-xl">priority_high</span>
-                      {selectedClaim.prioridad || 'Alta'}
+                      {normalizarPrioridadCriticidad(selectedClaim.prioridad) || 'Alta'}
                     </p>
                     <p className="text-xs text-[#6b7280] mt-1">Escalar si hay demora</p>
                   </div>
@@ -316,15 +383,15 @@ export default function UserDashboard() {
                       Categoría del caso
                     </p>
                     <p className="text-lg font-extrabold text-[#111827]">
-                      Facturación y reembolsos
+                      {selectedClaim.tipoReclamoId || '—'}
                     </p>
-                    <p className="text-xs text-[#6b7280] mt-1">Acuerdo de servicio</p>
+                    <p className="text-xs text-[#6b7280] mt-1">Tipo de reclamo</p>
                   </div>
                 </div>
 
                 {/* Trazabilidad horizontal */}
                 <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] p-6">
-                  <TraceabilityJourney />
+                  <TraceabilityHorizontal reclamo={selectedClaim} />
                 </div>
 
                 {/* Activity */}
@@ -336,32 +403,35 @@ export default function UserDashboard() {
                   </div>
 
                   <ol className="space-y-4">
-                    {(selectedClaim.cambioEstado?.length
-                      ? selectedClaim.cambioEstado
-                      : [
-                          { _id: '1', estado: { nombre: 'Transferido a Finanzas', descripcion: 'Revisión legal completada. Caso derivado a Finanzas para cálculo y aprobación.' }, fechaHoraCambio: new Date().toISOString() },
-                          { _id: '2', estado: { nombre: 'Verificación de documentos', descripcion: 'Se verificó factura de compra y garantía.' }, fechaHoraCambio: new Date(Date.now() - 86400000).toISOString() },
-                          { _id: '3', estado: { nombre: 'Reclamo inicializado', descripcion: 'El sistema recibió la solicitud vía portal web.' }, fechaHoraCambio: selectedClaim.fechaHoraInicio },
-                        ]
-                    ).map((cambio: { _id: string; estado?: { nombre: string; descripcion?: string }; fechaHoraCambio: string }, idx: number) => (
-                      <li key={cambio._id} className="flex gap-4">
-                        <div className="flex flex-col items-center">
-                          <span className="mt-1 w-2.5 h-2.5 rounded-full bg-[var(--color-primary)]" />
-                          {idx !== (selectedClaim.cambioEstado?.length || 3) - 1 && <span className="flex-1 min-h-[20px] w-[2px] bg-[#e5e7eb] mt-2" />}
-                        </div>
-                        <div className="flex-1 pb-1">
-                          <div className="flex items-start justify-between gap-4">
-                            <p className="text-sm font-extrabold text-[#111827]">{cambio.estado?.nombre || 'Estado desconocido'}</p>
-                            <p className="text-xs text-[#9ca3af] whitespace-nowrap">
-                              {new Date(cambio.fechaHoraCambio).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })}
+                    {(() => {
+                      const historialItems: { _id: string; estado?: { nombre: string; descripcion?: string }; fechaHoraCambio: string }[] = [
+                        { _id: 'init', estado: { nombre: 'Iniciada', descripcion: 'El reclamo fue creado y recibido por el sistema.' }, fechaHoraCambio: selectedClaim.fechaHoraInicio },
+                      ];
+                      const cambios = selectedClaim.cambioEstado ?? [];
+                      const ordenados = [...cambios].sort(
+                        (a, b) => new Date(a.fechaHoraCambio).getTime() - new Date(b.fechaHoraCambio).getTime()
+                      );
+                      ordenados.forEach((c) => historialItems.push({ _id: c._id, estado: c.estado, fechaHoraCambio: c.fechaHoraCambio }));
+                      return historialItems.map((cambio, idx) => (
+                        <li key={cambio._id} className="flex gap-4">
+                          <div className="flex flex-col items-center">
+                            <span className="mt-1 w-2.5 h-2.5 rounded-full bg-[var(--color-primary)]" />
+                            {idx !== historialItems.length - 1 && <span className="flex-1 min-h-[20px] w-[2px] bg-[#e5e7eb] mt-2" />}
+                          </div>
+                          <div className="flex-1 pb-1">
+                            <div className="flex items-start justify-between gap-4">
+                              <p className="text-sm font-extrabold text-[#111827]">{cambio.estado?.nombre || 'Estado desconocido'}</p>
+                              <p className="text-xs text-[#9ca3af] whitespace-nowrap">
+                                {new Date(cambio.fechaHoraCambio).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })}
+                              </p>
+                            </div>
+                            <p className="mt-1 text-sm text-[#4b5563] leading-relaxed">
+                              {cambio.estado?.descripcion || 'Sin descripción'}
                             </p>
                           </div>
-                          <p className="mt-1 text-sm text-[#4b5563] leading-relaxed">
-                            {cambio.estado?.descripcion || 'Sin descripción'}
-                          </p>
-                        </div>
-                      </li>
-                    ))}
+                        </li>
+                      ));
+                    })()}
                   </ol>
 
                   <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-[#e5e7eb]">

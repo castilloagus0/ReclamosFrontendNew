@@ -2,6 +2,8 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import Button from '../components/Button';
 import { LogoShield } from '../components/Icons';
 import PreviewCharts from '../components/PreviewCharts';
+import TrazabilityCharts from '../components/TrazabilityCharts';
+import AsignedCharts from '../components/AsignedCharts';
 
 import Navbar from '../components/Navbar';
 import MenuDashboard, { type AdminView } from '../components/menuDashboard';
@@ -23,6 +25,7 @@ import {
 //Service
 import { getReclamos } from '../service/reclamo.service';
 import { getUsuarios } from '../service/usuarios.service';
+import { getAgentes } from '../service/agentes.service';
 
 //Interface
 import {
@@ -32,10 +35,11 @@ import {
   FiltroCriticidad,
 } from '../interfaces/reclamo.interface';
 import { Usuario } from '../interfaces/usuarios.interface';
+import { AgenteI } from '../interfaces/agente.interface';
 
 
 //context
-import { statusPillClasses, priorityTextClasses } from '../context/functions';
+import { statusPillClasses, priorityTextClasses, normalizarPrioridadCriticidad } from '../context/functions';
 
 ChartJS.register(
   ArcElement,
@@ -213,6 +217,8 @@ export default function AdminDashboard() {
   const [limit] = useState(10);
   const [isLastPage, setIsLastPage] = useState(false);
   const [selectedClaim, setSelectedClaim] = useState<ReclamoI | null>(null);
+  const [selectedTrazabilityClaimId, setSelectedTrazabilityClaimId] = useState<string | null>(null);
+  const [selectedClaimToAssign, setSelectedClaimToAssign] = useState<ReclamoI | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<FiltroEstado>('Todos');
   const [areaFilter, setAreaFilter] = useState<'Todas las áreas' | 'Soporte' | 'Finanzas'>(
@@ -222,7 +228,10 @@ export default function AdminDashboard() {
   const [criticidadFilter, setCriticidadFilter] = useState<FiltroCriticidad>('Todas');
   const [usuariosPage, setUsuariosPage] = useState(1);
   const [usuariosPerPage] = useState(8);
-
+  const [agentes, setAgentes] = useState<AgenteI[]>([]);
+  const [refreshClaimsTrigger, setRefreshClaimsTrigger] = useState(0);
+  
+ 
   const paginatedUsuarios = useMemo(() => {
     const start = (usuariosPage - 1) * usuariosPerPage;
     return usuarios.slice(start, start + usuariosPerPage);
@@ -233,8 +242,8 @@ export default function AdminDashboard() {
   const filteredClaims = useMemo(() => {
     return claims.filter((r) => {
       const estadoNombre = r.estado?.nombre ?? '';
-      const prioridad = r.prioridad ?? '';
-      const criticidad = r.criticidad ?? '';
+      const prioridad = normalizarPrioridadCriticidad(r.prioridad);
+      const criticidad = normalizarPrioridadCriticidad(r.criticidad);
 
       if (statusFilter !== 'Todos' && estadoNombre.toLowerCase() !== statusFilter.toLowerCase()) return false;
       if (priorityFilter !== 'Todas' && prioridad.toLowerCase() !== priorityFilter.toLowerCase()) return false;
@@ -267,7 +276,7 @@ export default function AdminDashboard() {
 
     source.forEach((r) => {
       const estadoNombre = r.estado?.nombre;
-      const prioridad = r.prioridad;
+      const prioridad = normalizarPrioridadCriticidad(r.prioridad);
       if (estadoNombre && byStatus[estadoNombre] !== undefined) {
         byStatus[estadoNombre]++;
       }
@@ -309,6 +318,14 @@ export default function AdminDashboard() {
   );
 
   useEffect(() => {
+    const obtenerAgentes = async () => {
+      const data: AgenteI[] = await getAgentes();
+      setAgentes(data);
+    }
+    obtenerAgentes();
+  }, [])
+
+  useEffect(() => {
     const obtenerReclamos = async () => {
       try {
         const data = await getReclamos(currentPage, limit);
@@ -318,7 +335,7 @@ export default function AdminDashboard() {
           : Array.isArray(data)
             ? data
             : [];
-        // console.log(reclamos)
+        console.log(reclamos)
 
         setAmount(reclamos.length);
 
@@ -339,7 +356,7 @@ export default function AdminDashboard() {
     };
 
     obtenerReclamos();
-  }, [currentPage, limit]);
+  }, [currentPage, limit, refreshClaimsTrigger]);
 
   useEffect(() => {
     const obtenerUsuarios = async () => {
@@ -672,19 +689,19 @@ export default function AdminDashboard() {
                           <td className="px-4 py-2">
                             <span
                               className={`text-xs font-semibold uppercase tracking-wide ${priorityTextClasses(
-                                r.prioridad ?? '',
+                                normalizarPrioridadCriticidad(r.prioridad),
                               )}`}
                             >
-                              {r.prioridad ?? '—'}
+                              {normalizarPrioridadCriticidad(r.prioridad) || '—'}
                             </span>
                           </td>
                           <td className="px-4 py-2">
                           <span
                               className={`text-xs font-semibold uppercase tracking-wide ${priorityTextClasses(
-                                r.criticidad ?? '',
+                                normalizarPrioridadCriticidad(r.criticidad),
                               )}`}
                             >
-                              {r.criticidad ?? '—'}
+                              {normalizarPrioridadCriticidad(r.criticidad) || '—'}
                             </span>
                           </td>
                           <td className="px-4 py-2">
@@ -714,6 +731,7 @@ export default function AdminDashboard() {
                                 className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f3f4f6]"
                                 aria-label="Ver trazabilidad"
                                 title="Ver trazabilidad"
+                                onClick={() => setSelectedTrazabilityClaimId(r._id)}
                               >
                                 <span className="material-symbols-outlined text-[18px]">
                                   timeline
@@ -724,6 +742,7 @@ export default function AdminDashboard() {
                                 className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f3f4f6]"
                                 aria-label="Asignar"
                                 title="Asignar"
+                                onClick={() => setSelectedClaimToAssign(r)}
                               >
                                 <span className="material-symbols-outlined text-[18px]">
                                   group_add
@@ -853,16 +872,21 @@ export default function AdminDashboard() {
       <PreviewCharts
         claim={selectedClaim}
         onClose={() => setSelectedClaim(null)}
-        onStatusChange={(claimId, newStatus, resolucion) => {
-          // Actualizar el estado.nombre en la lista local
-          setClaims((prev) =>
-            prev.map((r) =>
-              r._id === claimId
-                ? { ...r, estado: { ...r.estado, nombre: newStatus } }
-                : r,
-            ),
-          );
-        }}
+        onStatusChange={() => setRefreshClaimsTrigger((t) => t + 1)}
+        onPrioridadCriticidadChange={() => setRefreshClaimsTrigger((t) => t + 1)}
+      />
+
+      {/* Modal de trazabilidad */}
+      <TrazabilityCharts
+        reclamoId={selectedTrazabilityClaimId}
+        onClose={() => setSelectedTrazabilityClaimId(null)}
+      />
+
+      {/* Modal de asignar reclamo */}
+      <AsignedCharts
+        claim={selectedClaimToAssign}
+        onClose={() => setSelectedClaimToAssign(null)}
+        onAssignSuccess={() => setRefreshClaimsTrigger((t) => t + 1)}
       />
     </>
   );

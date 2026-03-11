@@ -1,22 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { ReclamoI, EstadoNombre } from '../interfaces/reclamo.interface';
+import { ReclamoI, EstadoNombre, PrioridadNombre } from '../interfaces/reclamo.interface';
 import { EstadosReclamos } from '../interfaces/estados.interface';
 import { statusPillStyles, priorityStyles } from '../components/Icons';
+import { normalizarPrioridadCriticidad } from '../context/functions';
 import { getEstados } from '../service/estados.service';
-import { updateStatusCharts } from '../service/reclamo.service';
+import { updateStatusCharts, assignCriticality, assignPriority } from '../service/reclamo.service';
+
+import { toast } from 'sonner';
 
 interface PreviewChartsProps {
     claim: ReclamoI | null;
     onClose: () => void;
     onStatusChange?: (claimId: string, newStatus: EstadoNombre, resolucion?: string) => void;
+    onPrioridadCriticidadChange?: (claimId: string, prioridad: string, criticidad: string) => void;
 }
 
-export default function PreviewCharts({ claim, onClose, onStatusChange }: PreviewChartsProps) {
+export default function PreviewCharts({ claim, onClose, onStatusChange, onPrioridadCriticidadChange }: PreviewChartsProps) {
     const [selectedEstado, setSelectedEstado] = useState<string>('');
+    const [selectedEstadoId, setSelectedEstadoId] = useState<string>('');
     const [resolucion, setResolucion] = useState<string>('');
     const [submitted, setSubmitted] = useState<boolean>(false);
     const [estados, setEstados] = useState<EstadosReclamos[]>([]);
     const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+    const [selectedPrioridad, setSelectedPrioridad] = useState<string>('');
+    const [selectedCriticidad, setSelectedCriticidad] = useState<string>('');
+
+    const OPCIONES_PRIORIDAD: PrioridadNombre[] = ['Alta', 'Media', 'Baja'];
+
+    const prioridadToNumber: Record<string, number> = { Alta: 3, Media: 2, Baja: 1 };
     
     useEffect(() => {
         const fetchEstados = async () => {
@@ -34,6 +45,9 @@ export default function PreviewCharts({ claim, onClose, onStatusChange }: Previe
     useEffect(() => {
         if (claim) {
             setSelectedEstado(claim.estado?.nombre ?? '');
+            setSelectedEstadoId(claim.estado?._id ?? '');
+            setSelectedPrioridad(normalizarPrioridadCriticidad(claim.prioridad));
+            setSelectedCriticidad(normalizarPrioridadCriticidad(claim.criticidad));
             setResolucion('');
             setSubmitted(false);
         }
@@ -44,13 +58,46 @@ export default function PreviewCharts({ claim, onClose, onStatusChange }: Previe
 
     const estaResuelto = claim.estado?.nombre === 'Resuelta';
 
-    const handleConfirm = () => {
-        // try{
-        //     const updateClaims = await updateStatusCharts(claim._id, estados.id, '6940946523c6265241ce5f4c')
-        //     console.log("updateClaims", updateClaims)
-        // }catch(err){
-        //     console.error("Error en handleConfirm:", err);
-        // }
+    const handleConfirm = async () => {
+        try {
+            const idAdmin = localStorage.getItem('id');
+            const prioridadOriginal = normalizarPrioridadCriticidad(claim.prioridad);
+            const criticidadOriginal = normalizarPrioridadCriticidad(claim.criticidad);
+            const prioridadCambio = selectedPrioridad && selectedPrioridad !== prioridadOriginal;
+            const criticidadCambio = selectedCriticidad && selectedCriticidad !== criticidadOriginal;
+
+            const updateClaims = await updateStatusCharts(claim._id, selectedEstadoId, idAdmin!, resolucion);
+
+            if (prioridadCambio) {
+                const prioridadNum = prioridadToNumber[selectedPrioridad];
+                if (prioridadNum !== undefined) {
+                    await assignPriority(claim._id, prioridadNum);
+                }
+            }
+            if (criticidadCambio) {
+                const criticidadNum = prioridadToNumber[selectedCriticidad];
+                if (criticidadNum !== undefined) {
+                    await assignCriticality(claim._id, criticidadNum);
+                }
+            }
+
+            if (updateClaims.status === 200) {
+                const mensajes = ['Estado actualizado correctamente'];
+                if (prioridadCambio) mensajes.push('Prioridad actualizada');
+                if (criticidadCambio) mensajes.push('Criticidad actualizada');
+                toast.success(mensajes.join('. '));
+                onClose();
+                if (onStatusChange) {
+                    onStatusChange(claim._id, selectedEstado as EstadoNombre, resolucion);
+                }
+                if (onPrioridadCriticidadChange && (prioridadCambio || criticidadCambio)) {
+                    onPrioridadCriticidadChange(claim._id, selectedPrioridad, selectedCriticidad);
+                }
+            }
+        } catch (err) {
+            console.error("Error en handleConfirm:", err);
+            toast.error("Error al actualizar. Verificá los datos e intentá de nuevo.");
+        }
     };
 
     const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -129,23 +176,34 @@ export default function PreviewCharts({ claim, onClose, onStatusChange }: Previe
                             {/* Prioridad */}
                             <div className="bg-[#f9fafb] rounded-xl p-3 border border-[#e5e7eb]">
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-[#9ca3af] mb-1">Prioridad</p>
-                                <span
-                                    className={`text-xs font-semibold uppercase tracking-wide ${priorityStyles[claim.prioridad ?? ''] ?? 'text-[#4b5563]'
-                                        }`}
+                                <select
+                                    disabled={estaResuelto}
+                                    value={selectedPrioridad}
+                                    onChange={(e) => setSelectedPrioridad(e.target.value)}
+                                    className={`w-full rounded-lg border border-[#e5e7eb] bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide outline-none transition-all focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 ${estaResuelto ? 'bg-gray-100' : 'focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100'}`}
                                 >
-                                    {claim.prioridad ?? '—'}
-                                </span>
+                                    <option value="">— Seleccionar —</option>
+                                    {OPCIONES_PRIORIDAD.map((p) => (
+                                        <option key={p} value={p}>{p}</option>
+                                    ))}
+                                </select>
                             </div>
 
                             {/* Criticidad */}
                             <div className="bg-[#f9fafb] rounded-xl p-3 border border-[#e5e7eb]">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-[#9ca3af] mb-1">Criticidad</p>
-                                <span
-                                    className={`text-xs font-semibold uppercase tracking-wide ${priorityStyles[claim.criticidad ?? ''] ?? 'text-[#4b5563]'
-                                        }`}
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-[#9ca3af] mb-1"
+                                >Criticidad</p>
+                                <select
+                                    disabled={estaResuelto}
+                                    value={selectedCriticidad}
+                                    onChange={(e) => setSelectedCriticidad(e.target.value)}
+                                    className={`w-full rounded-lg border border-[#e5e7eb] bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide outline-none transition-all focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 ${estaResuelto ? 'bg-gray-100' : 'focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100'}`}
                                 >
-                                    {claim.criticidad ?? '—'}
-                                </span>
+                                    <option value="">— Seleccionar —</option>
+                                    {OPCIONES_PRIORIDAD.map((p) => (
+                                        <option key={p} value={p}>{p}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 
@@ -172,8 +230,11 @@ export default function PreviewCharts({ claim, onClose, onStatusChange }: Previe
                             value={selectedEstado}
                             disabled={estaResuelto}
                             onChange={(e) => {
-                                console.log("Estado seleccionado:", e.target.value);
-                                setSelectedEstado(e.target.value);
+                                const estadoNombre = e.target.value;
+                                const estadoObj = estados.find(est => est.nombre === estadoNombre);
+                                console.log("Estado seleccionado:", estadoObj)
+                                setSelectedEstado(estadoNombre);
+                                setSelectedEstadoId(estadoObj?._id || '');
                                 setResolucion('');
                                 setSubmitted(false);
                             }}
@@ -182,7 +243,7 @@ export default function PreviewCharts({ claim, onClose, onStatusChange }: Previe
                         >
                             <option value="" disabled>— Seleccioná un estado —</option>
                             {estados.map((est) => (
-                                <option key={est.id} value={est.nombre}>
+                                <option key={est._id} value={est.nombre}>
                                     {est.nombre}
                                 </option>
                             ))}

@@ -1,5 +1,5 @@
 export interface EstadosReclamos {
-    id:string,
+    _id:string,
     nombre: string
     descripcion: string
 }
